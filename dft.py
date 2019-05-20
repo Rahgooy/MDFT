@@ -94,7 +94,7 @@ class DFTSample:
 
 
 def get_fixed_T_dft_dist(model, samples, T):
-    dist, _ = get_dft_dist(model, samples, False, T, 0)
+    dist, _, _ = get_dft_dist(model, samples, False, T, 0)
     return dist
 
 
@@ -112,6 +112,7 @@ def get_dft_dist(model, samples, tb, T, threshold):
     gen = RouletteWheelGenerator(model.w)
     P = np.repeat(model.P0, samples, axis=1)
     has_converged = True
+    max_t = 0
     if tb:
         s = samples
         converged = None
@@ -121,7 +122,10 @@ def get_dft_dist(model, samples, tb, T, threshold):
         MAX_TRIAL = 3
         trials = 0
         while s > 0 and trials < MAX_TRIAL:
-            if t >= MAX_T: # reset long deliberations to generate new ones
+            if t >= MAX_T:  # reset long deliberations to generate new ones
+                if s == samples: # No sample converged
+                    print(f"No sample converged after {MAX_T}.")
+                    break
                 P = np.repeat(model.P0, s, axis=1)
                 print(f"Not converged after {MAX_T} : {s}. ")
                 print(f"Reset trial number {trials}...")
@@ -151,7 +155,8 @@ def get_dft_dist(model, samples, tb, T, threshold):
         if s != 0:
             has_converged = False
         P = converged
-        print(f"Maximum T: {t}")
+        max_t = t
+        print(f"Maximum T: {max_t}")
     else:
         for t in range(1, T + 1):
             W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
@@ -163,10 +168,7 @@ def get_dft_dist(model, samples, tb, T, threshold):
     if len(dist) < opts:
         dist = np.append(dist, np.zeros(opts - len(dist)))
 
-    if has_converged and sum(dist) != 1:
-        print("error")
-
-    return dist.reshape(-1, 1), has_converged
+    return dist.reshape(-1, 1), has_converged, max_t
 
 
 def generate_fixed_time_DFT_samples(M, S, w, P0, n, t, parameters):

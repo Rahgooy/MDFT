@@ -34,8 +34,9 @@ def generate_data(params):
     S = hotaling_S(M, φ1, φ2, b)
     model = DFT(M, S, w, P0)
     converged = True
+    max_t = T
     if tb:
-        dist, converged = get_threshold_based_dft_dist(model, n_samples, threshold)
+        dist, converged, max_t = get_threshold_based_dft_dist(model, n_samples, threshold)
     else:
         dist = get_fixed_T_dft_dist(model, n_samples, T)
 
@@ -53,7 +54,7 @@ def generate_data(params):
                'C': model.C.tolist(),
                'P0': model.P0.tolist(),
                'n_samples': n_samples
-           }, converged
+           }, converged, max_t
 
 
 def generate_random_data(n_samples, n_datasets, n_options, path, tb, params):
@@ -80,7 +81,7 @@ def generate_random_data(n_samples, n_datasets, n_options, path, tb, params):
         'tb': tb,
         'n_samples': n_samples
     }
-    dataset = []
+    datasets = []
     for i in range(n_datasets):
         while True:
             p['threshold'] = params['threshold'] if 'threshold' in params else 0
@@ -96,21 +97,27 @@ def generate_random_data(n_samples, n_datasets, n_options, path, tb, params):
                 w = [0.3, 0.5, 0.7][np.random.randint(0, 3)]
                 p['w'] = np.array([[w], [1 - w]])
 
-            data, converged = generate_data(p)
+            data, converged, max_t = generate_data(p)
             if not converged:
                 print("Not converged")
+                continue
+            if max_t < 10:
+                print("Short deliberation")
                 continue
             freq = np.array(data['freq'])
             print(freq)
             if sum(freq < min_freq_accepted) == sum(freq == 0):
                 if (freq > 0).sum() >= min_non_zero_freq:
                     break
-        dataset.append(data)
+        datasets.append(data)
         print("data set number {} is generated. N_options : {}".format(i + 1, n_options))
     p = Path(path)
     p.parent.mkdir(exist_ok=True, parents=True)
     with p.open(mode="w") as f:
-        json.dump(dataset, f, indent=4)
+        json.dump({
+            'tb': tb,
+            'datasets': datasets
+        }, f, indent=4)
 
 
 if __name__ == "__main__":
