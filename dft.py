@@ -116,10 +116,17 @@ def get_dft_dist(model, samples, tb, T, threshold):
         s = samples
         converged = None
 
-        t = 1
-        MAX_T = 2000
-        while s > 0 and t < MAX_T:
-            t += 1
+        t = 0
+        MAX_T = 200
+        MAX_TRIAL = 3
+        trials = 0
+        while s > 0 and trials < MAX_TRIAL:
+            if t >= MAX_T: # reset long deliberations to generate new ones
+                P = np.repeat(model.P0, s, axis=1)
+                print(f"Not converged after {MAX_T} : {s}. ")
+                print(f"Reset trial number {trials}...")
+                t = 0
+                trials += 1
             W = np.array([gen.generate() for _ in range(s)], dtype=np.double).squeeze().T
             if W.ndim == 1:
                 W = W.reshape(-1, s)
@@ -140,10 +147,11 @@ def get_dft_dist(model, samples, tb, T, threshold):
 
             P = P[:, P_max < threshold]
             s = P.shape[1]
+            t += 1
         if s != 0:
             has_converged = False
         P = converged
-        print(f"t:{t}")
+        print(f"Maximum T: {t}")
     else:
         for t in range(1, T + 1):
             W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
