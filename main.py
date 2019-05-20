@@ -26,7 +26,7 @@ from time import time
 
 import torch
 from scipy import stats
-from dft import load_DFT_dataset, DFT, get_dft_dist
+from dft import load_DFT_dataset, DFT, get_fixed_T_dft_dist
 from dft_net import DFT_Net
 from helpers.distances import hotaling_S
 from helpers.weight_generator import RouletteWheelGenerator

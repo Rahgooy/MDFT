@@ -3,7 +3,7 @@ import re
 import numpy as np
 import scipy.stats
 
-from dft import load_DFT_dataset, get_dft_dist, DFT
+from dft import load_DFT_dataset, get_fixed_T_dft_dist, DFT
 from helpers.distances import hotaling_S
 from helpers.evaluation import jsd, kendalltau_dist, dft_jsd
 from matplotlib import pyplot as plt

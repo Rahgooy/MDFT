@@ -93,7 +93,16 @@ class DFTSample:
         self.option_idx = option_idx
 
 
-def get_dft_dist(model, samples, T):
+def get_fixed_T_dft_dist(model, samples, T):
+    dist, _ = get_dft_dist(model, samples, False, T, 0)
+    return dist
+
+
+def get_threshold_based_dft_dist(model, samples, threshold):
+    return get_dft_dist(model, samples, True, 0, threshold)
+
+
+def get_dft_dist(model, samples, tb, T, threshold):
     def forward(w, prev_p, model):
         CM = model.C @ model.M
         V = CM @ w
@@ -102,17 +111,54 @@ def get_dft_dist(model, samples, T):
 
     gen = RouletteWheelGenerator(model.w)
     P = np.repeat(model.P0, samples, axis=1)
-    for t in range(1, T + 1):
-        W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
-        P = forward(W, P, model)
+    has_converged = True
+    if tb:
+        s = samples
+        converged = None
+
+        t = 1
+        MAX_T = 2000
+        while s > 0 and t < MAX_T:
+            t += 1
+            W = np.array([gen.generate() for _ in range(s)], dtype=np.double).squeeze().T
+            if W.ndim == 1:
+                W = W.reshape(-1, s)
+            P = forward(W, P, model)
+
+            P_min = P.min(axis=0)
+            P_max = P.max(axis=0) - P_min
+            P_sum = (P - P_min).sum(axis=0)
+
+            P_max = P_max / P_sum
+
+            # P_max = P.max(axis=0)
+
+            if converged is None:
+                converged = P[:, P_max >= threshold]
+            else:
+                converged = np.hstack((converged, P[:, P_max >= threshold]))
+
+            P = P[:, P_max < threshold]
+            s = P.shape[1]
+        if s != 0:
+            has_converged = False
+        P = converged
+        print(f"t:{t}")
+    else:
+        for t in range(1, T + 1):
+            W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
+            P = forward(W, P, model)
 
     choice_indices = P.argmax(axis=0)
-    dist = np.bincount(choice_indices) / samples
+    dist = np.array(np.bincount(choice_indices), dtype=np.double) / samples
     opts = model.M.shape[0]
     if len(dist) < opts:
         dist = np.append(dist, np.zeros(opts - len(dist)))
 
-    return dist.reshape(-1, 1)
+    if has_converged and sum(dist) != 1:
+        print("error")
+
+    return dist.reshape(-1, 1), has_converged
 
 
 def generate_fixed_time_DFT_samples(M, S, w, P0, n, t, parameters):

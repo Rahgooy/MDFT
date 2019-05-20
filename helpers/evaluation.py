@@ -1,19 +1,19 @@
 import numpy as np
-from dft import get_dft_dist
+from dft import get_fixed_T_dft_dist
 from scipy import stats
 from itertools import combinations, permutations
 
 
 def dft_kl(model1, model2, samples, T):
-    dist1 = get_dft_dist(model1, samples, T)
-    dist2 = get_dft_dist(model2, samples, T)
+    dist1 = get_fixed_T_dft_dist(model1, samples, T)
+    dist2 = get_fixed_T_dft_dist(model2, samples, T)
 
     return stats.entropy(dist1, dist2), dist1.T, dist2.T
 
 
 def dft_jsd(model1, model2, samples, T):
-    dist1 = get_dft_dist(model1, samples, T)
-    dist2 = get_dft_dist(model2, samples, T)
+    dist1 = get_fixed_T_dft_dist(model1, samples, T)
+    dist2 = get_fixed_T_dft_dist(model2, samples, T)
 
     return jsd(dist1, dist2), dist1.T, dist2.T
 

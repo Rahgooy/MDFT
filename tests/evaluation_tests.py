@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from dft import load_DFT_dataset, generate_fixed_time_DFT_samples, get_dft_dist
+from dft import load_DFT_dataset, generate_fixed_time_DFT_samples, get_fixed_T_dft_dist
 from helpers.distances import hotaling
 import math
 
@@ -20,7 +20,7 @@ class distances_tests(unittest.TestCase):
             data_samples = np.array([d.choice for d in data.samples])
             data_dist = np.average(data_samples, axis=0)
 
-            dist = get_dft_dist(model, samples, T)
+            dist = get_fixed_T_dft_dist(model, samples, T)
 
             self.assertTrue(np.allclose(data_dist, dist, rtol=1e-2, atol=1e-3))
 
