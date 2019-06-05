@@ -50,6 +50,7 @@ def generate_data(params):
                "T": T,
                'freq': dist.squeeze().tolist(),
                'S': model.S.tolist(),
+               'M': model.M.tolist(),
                'w': model.w.tolist(),
                'C': model.C.tolist(),
                'P0': model.P0.tolist(),
@@ -57,7 +58,7 @@ def generate_data(params):
            }, converged, max_t
 
 
-def generate_random_data(n_samples, n_datasets, n_options, path, tb, params):
+def generate_random_dataset(n_samples, n_datasets, n_options, path, tb, params):
     """
     Generates MDFT datasets with random parameters.
     :param n_samples: number of samples in each dataset
@@ -125,13 +126,13 @@ if __name__ == "__main__":
         "φ1": 0.22,
         "φ2": 0.05,
         "b": 12,
-        "w": 0.5,
+        "w": 0.3,
         "threshold": 0.7,
         "T": 100,
     }
-    generate_random_data(n_samples=5000,
-                         n_datasets=10,
-                         n_options=3,
-                         path="data/threshold_o_3.json",
-                         tb=True,
-                         params=params)
+    generate_random_dataset(n_samples=5000,
+                            n_datasets=10,
+                            n_options=3,
+                            path="data/threshold_o_3.json",
+                            tb=True,
+                            params=params)

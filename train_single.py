@@ -1,11 +1,12 @@
 """
-Learn DFT using a recurrent neural network
+Learn MDFT using a recurrent neural network.
+The distribution of a single MDFT is used to estimate its parameters.
 
 Usage:
-    main.py [options]
+    train_single.py [options]
 
 Examples:
-    main.py --niter=100
+    train_single.py --niter=100
 
 Options:
     -h --help                  Show this screen.
@@ -21,20 +22,20 @@ Options:
 import functools
 import json
 import operator
+from pathlib import Path
+from pprint import pprint
 from random import shuffle
 from time import time
 
+import numpy as np
 import torch
-from scipy import stats
-from dft import load_DFT_dataset, DFT, get_fixed_T_dft_dist
+from docpie import docpie
+
+from dft import DFT
 from dft_net import DFT_Net
 from helpers.distances import hotaling_S
-from helpers.weight_generator import RouletteWheelGenerator
-from docpie import docpie
-import numpy as np
-from pprint import pprint
-from pathlib import Path
 from helpers.evaluation import dft_kl
+from helpers.weight_generator import RouletteWheelGenerator
 
 
 def train():
@@ -200,105 +201,108 @@ if __name__ == "__main__":
     learn_m = eval(str(opts['m']))
     learn_w = eval(str(opts['w']))
 
-    data = load_DFT_dataset(opts['i'])
-    data.summary()
+    with open(opts['i'], 'r', encoding="utf-8") as f:
+        dataset = json.load(f)
 
-    options = {
-        'b': data.parameters['b'],
-        'options_count': data.M.shape[0],
-        'attr_count': data.M.shape[1],
-        'M': data.M.copy(),
-        'φ1': data.parameters['φ1'],
-        'φ2': data.parameters['φ2'],
-        'P0': data.P0.copy(),
-        'w': None if learn_w else data.w.copy(),
-        'learn_m': learn_m,
-        'learn_w': learn_w
-    }
+    for data in dataset:
+        data['M'] = np.array(data['M'])
+        data['P0'] = np.array(data['P0'])
+        data['w'] = np.array(data['w'])
 
-    T = data.samples[0].t
-    best = None
-    it = None
-    for rep in range(1):
-        model = DFT_Net(options)
-        loss, lr, momentum, optimizer = get_hyper_params()
-        optim_name = str(optimizer).split('(')[0]
-        loss_name = str(loss).split('(')[0]
-        b, i = train()
-        if best is None or b['error'] < best['error']:
-            best = b
-            it = i
-        if b['error'] < 1e-10:
-            break
-
-    outPath = Path(output)
-    outPath.parent.mkdir(exist_ok=True, parents=True)
-    with outPath.open(mode='w') as f:
-        data.summary(f)
-        print("============================= Settings ==============================", file=f)
-        print("Repetition : {}".format(rep + 1), file=f)
-        print("Number of Iterations : {}[max{}, best{}]".format(it + 1, niter, best["iter"]), file=f)
-        print("Learning rate : {}".format(lr), file=f)
-        print("Optimizer: {}".format(optim_name), file=f)
-        print("============================= Results  ==============================", file=f)
-        time_ = time() - main_start
-        print("Time : {:0.3f}s".format(time_))
-        print("Time : {:0.3f}s".format(time_), file=f)
-        print("{}: {}".format(loss_name, best["error"]), file=f)
-        print("M:", file=f)
-        print(np.array(best["M"]), file=f)
-        print("φ1: {}".format(best["φ1"]), file=f)
-        print("φ2: {}".format(best["φ2"]), file=f)
-        print("w: {}".format(best["w"]), file=f)
-
-        model_M = np.array(best["M"])
-        model_S = hotaling_S(model_M, best["φ1"], best["φ2"], model.b)
-        model_dft = DFT(model_M, model_S, np.array(best["w"]), model.P0)
-        kl, actual_dist, model_dist = dft_kl(data, model_dft, ntest, T)
-        avg = np.array([d.choice for d in data.samples])
-        avg = np.average(avg, axis=0)
-
-        print("Test sample size: {}".format(ntest), file=f)
-        print("Actual dist: {}".format(actual_dist), file=f)
-        print("Model dist: {}".format(model_dist), file=f)
-        actual_freq = ["{:04d}".format(int(x * ntest)) for x in actual_dist.squeeze()]
-        print("Actual freq: [{}]".format(' & '.join(actual_freq)),
-              file=f)
-        model_freq = ["{:04d}".format(int(x * ntest)) for x in model_dist.squeeze()]
-        print("Model freq: [{}]".format(' & '.join(model_freq)),
-              file=f)
-        print("KL-Divergence: {}".format(kl), file=f)
-
-        print("Test sample size: {}".format(ntest))
-        print("Actual dist: {}".format(actual_dist))
-        print("Model dist: {}".format(model_dist))
-        print("KL-Divergence: {}".format(kl))
-
-    outPath = outPath.parent / (outPath.name[:-3] + "json")
-    with outPath.open(mode='w') as f:
-        avg = np.array([d.choice for d in data.samples])
-        avg = np.average(avg, axis=0).tolist()
-
-        results = {
-            'nsamples': len(data.samples),
-            'data': {
-                'M': data.M.tolist(),
-                'params': data.parameters,
-                'S': data.S.tolist(),
-                'w': data.w.tolist(),
-                'dist': avg,
-            },
-            'iter': it + 1,
-            'max_iter': niter,
-            'best': best,
-            'lr': lr,
-            'optim': optim_name,
-            'time': time_,
-            'loss_name': loss_name,
-            'ntest': ntest,
-            'actual_dist': actual_dist.tolist(),
-            'model_dist': model_dist.tolist(),
-            'actual_freq': actual_freq,
-            'model_freq': model_freq
+        options = {
+            'b': data['b'],
+            'options_count': data['M'].shape[0],
+            'attr_count': data['M'].shape[1],
+            'M': data['M'].copy(),
+            'φ1': data['φ1'],
+            'φ2': data['φ2'],
+            'P0': data['P0'].copy(),
+            'w': None if opts['w'] else data['w'].copy(),
         }
-        json.dump(results, f, sort_keys=True, indent=4)
+
+        T = data.samples[0].t
+        best = None
+        it = None
+        for rep in range(1):
+            model = DFT_Net(options)
+            loss, lr, momentum, optimizer = get_hyper_params()
+            optim_name = str(optimizer).split('(')[0]
+            loss_name = str(loss).split('(')[0]
+            b, i = train()
+            if best is None or b['error'] < best['error']:
+                best = b
+                it = i
+            if b['error'] < 1e-10:
+                break
+
+        outPath = Path(output)
+        outPath.parent.mkdir(exist_ok=True, parents=True)
+        with outPath.open(mode='w') as f:
+            data.summary(f)
+            print("============================= Settings ==============================", file=f)
+            print("Repetition : {}".format(rep + 1), file=f)
+            print("Number of Iterations : {}[max{}, best{}]".format(it + 1, niter, best["iter"]), file=f)
+            print("Learning rate : {}".format(lr), file=f)
+            print("Optimizer: {}".format(optim_name), file=f)
+            print("============================= Results  ==============================", file=f)
+            time_ = time() - main_start
+            print("Time : {:0.3f}s".format(time_))
+            print("Time : {:0.3f}s".format(time_), file=f)
+            print("{}: {}".format(loss_name, best["error"]), file=f)
+            print("M:", file=f)
+            print(np.array(best["M"]), file=f)
+            print("φ1: {}".format(best["φ1"]), file=f)
+            print("φ2: {}".format(best["φ2"]), file=f)
+            print("w: {}".format(best["w"]), file=f)
+
+            model_M = np.array(best["M"])
+            model_S = hotaling_S(model_M, best["φ1"], best["φ2"], model.b)
+            model_dft = DFT(model_M, model_S, np.array(best["w"]), model.P0)
+            kl, actual_dist, model_dist = dft_kl(data, model_dft, ntest, T)
+            avg = np.array([d.choice for d in data.samples])
+            avg = np.average(avg, axis=0)
+
+            print("Test sample size: {}".format(ntest), file=f)
+            print("Actual dist: {}".format(actual_dist), file=f)
+            print("Model dist: {}".format(model_dist), file=f)
+            actual_freq = ["{:04d}".format(int(x * ntest)) for x in actual_dist.squeeze()]
+            print("Actual freq: [{}]".format(' & '.join(actual_freq)),
+                  file=f)
+            model_freq = ["{:04d}".format(int(x * ntest)) for x in model_dist.squeeze()]
+            print("Model freq: [{}]".format(' & '.join(model_freq)),
+                  file=f)
+            print("KL-Divergence: {}".format(kl), file=f)
+
+            print("Test sample size: {}".format(ntest))
+            print("Actual dist: {}".format(actual_dist))
+            print("Model dist: {}".format(model_dist))
+            print("KL-Divergence: {}".format(kl))
+
+        outPath = outPath.parent / (outPath.name[:-3] + "json")
+        with outPath.open(mode='w') as f:
+            avg = np.array([d.choice for d in data.samples])
+            avg = np.average(avg, axis=0).tolist()
+
+            results = {
+                'nsamples': len(data.samples),
+                'data': {
+                    'M': data.M.tolist(),
+                    'params': data.parameters,
+                    'S': data.S.tolist(),
+                    'w': data.w.tolist(),
+                    'dist': avg,
+                },
+                'iter': it + 1,
+                'max_iter': niter,
+                'best': best,
+                'lr': lr,
+                'optim': optim_name,
+                'time': time_,
+                'loss_name': loss_name,
+                'ntest': ntest,
+                'actual_dist': actual_dist.tolist(),
+                'model_dist': model_dist.tolist(),
+                'actual_freq': actual_freq,
+                'model_freq': model_freq
+            }
+            json.dump(results, f, sort_keys=True, indent=4)

@@ -10,30 +10,14 @@ class DFT_Net(nn.Module):
         super(DFT_Net, self).__init__()
         self.__set_options(options)
         self.__set_C()
-        self.__set_M()
         self.__set_S()
-        self.__set_w()
-
-    def __set_w(self):
-        if self.learn_w:
-            self.w = np.ones((self.attr_count, 1)) #np.random.uniform(size=(self.attr_count, 1))
-            self.w /= self.w.sum()
 
     def __set_S(self):
-        self.H = torch.from_numpy(hotaling_matrix(self.b, dtype=np.float32))
-        self.H.requires_grad = False
-        self.φ1 = torch.tensor([self.φ1], requires_grad=False)
-        self.φ2 = torch.tensor([self.φ2], requires_grad=False)
+        self.H = (torch.eye(2) * 2 - 1 + self.b) / 2
         self.S = torch.zeros((self.options_count, self.options_count))
         for i in range(self.options_count):
             for j in range(self.options_count):
                 self.S[i, j] = self.__S(i, j)
-
-    def __set_M(self):
-        if self.learn_m:
-            self.M = torch.rand((self.options_count, self.attr_count), requires_grad=True)
-        else:
-            self.M = torch.tensor(self.M.tolist(), requires_grad=True)
 
     def __set_C(self):
         self.C = torch.ones((self.options_count, self.options_count)) * -(1 / (self.options_count - 1))
@@ -51,18 +35,16 @@ class DFT_Net(nn.Module):
             'φ2': 1,
             'P0': np.zeros((3, 1)),
             'w': np.ones((2, 1)) / 2,
-            'learn_m': True,
-            'learn_w': False
         }
         self.D = None
         for key in options:
-            if key in self.options:
+            if options[key] is not None and key in self.options:
                 self.options[key] = options[key]
         for key in self.options:
             self.__setattr__(key, self.options[key])
 
-    def forward(self, w, prev_p):
-        if self.learn_m:
+    def forward(self, w, prev_p, recalc_S=False):
+        if recalc_S:
             S = torch.zeros((self.options_count, self.options_count))
             for i in range(self.options_count):
                 for j in range(self.options_count):

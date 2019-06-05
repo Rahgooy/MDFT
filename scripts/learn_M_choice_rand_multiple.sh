@@ -9,7 +9,7 @@ do
 #    do
 #        input="data/random/set_${s}/set_hotaling_n${n}_l100_o${o}_${i}.pickle"
 #        output="results/learn_m/random/set_${s}/n_${n}_l100_o${o}_${i}.txt"
-#        python main.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
+#        python train_batch.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
 #    done
 
     o=5
@@ -27,7 +27,7 @@ do
 #    do
 #        input="data/random/set_${s}/set_hotaling_n${n}_l100_o${o}_${i}.pickle"
 #        output="results/learn_m/random/set_${s}/n_${n}_l100_o${o}_${i}.txt"
-#        python main.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
+#        python train_batch.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
 #    done
 #
 #    o=9
@@ -36,7 +36,7 @@ do
 #    do
 #        input="data/random/set_${s}/set_hotaling_n${n}_l100_o${o}_${i}.pickle"
 #        output="results/learn_m/random/set_${s}/n_${n}_l100_o${o}_${i}.txt"
-#        python main.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
+#        python train_batch.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
 #    done
 #
 #    o=11
@@ -45,7 +45,7 @@ do
 #    do
 #        input="data/random/set_${s}/set_hotaling_n${n}_l100_o${o}_${i}.pickle"
 #        output="results/learn_m/random/set_${s}/n_${n}_l100_o${o}_${i}.txt"
-#        python main.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
+#        python train_batch.py --niter 1000 --ntest 10000 --i ${input} --o ${output} --m
 #    done
 
 done

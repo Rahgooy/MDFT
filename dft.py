@@ -39,70 +39,16 @@ class DFT:
         return self.W[self.t]
 
 
-class DFTDataSet:
-    def __init__(self, M, S, w, P0, samples, parameters={}):
-        self.M = M
-        self.S = S
-        self.w = w
-        self.P0 = P0
-        self.C = np.ones((M.shape[0], M.shape[0])) * -(1 / (M.shape[0] - 1))
-        for i in range(len(M)):
-            self.C[i][i] = 1
-        self.samples = samples
-        self.parameters = parameters
-
-    def summary(self, file=None):
-        steps = np.array([x.t for x in self.samples])
-        avg = np.array([d.choice for d in self.samples])
-        avg = np.average(avg, axis=0)
-        print("========================== Data summary =============================", file=file)
-        print("# of examples: {}".format(len(self.samples)), file=file)
-        print("max T: {}, min T: {}".format(steps.max(), steps.min()), file=file)
-        print("# of options:{}".format(self.M.shape[0]), file=file)
-        print("# of attributes:{}".format(self.M.shape[1]), file=file)
-        print("W distribution:{}".format(self.w.T), file=file)
-        print("M:", file=file)
-        print(self.M, file=file)
-        print("C:", file=file)
-        print(self.C, file=file)
-        print("S:", file=file)
-        print(self.S, file=file)
-        print("Mean option choice: {}".format(avg.T), file=file)
-        for key in self.parameters:
-            print("{}: {}".format(key, self.parameters[key]), file=file)
-        print("=====================================================================", file=file)
-
-
-def save_DFT_dataset(dataset, path):
-    p = Path(path)
-    with p.open(mode='wb') as f:
-        pickle.dump(dataset, f)
-
-
-def load_DFT_dataset(path):
-    p = Path(path)
-    with p.open(mode='rb') as f:
-        return pickle.load(f)
-
-
-class DFTSample:
-    def __init__(self, choices, option_idx):
-        self.choice = choices[-1]['c']
-        self.t = choices[-1]['t']
-        self.choices = choices
-        self.option_idx = option_idx
-
-
 def get_fixed_T_dft_dist(model, samples, T):
-    dist, _, _ = get_dft_dist(model, samples, False, T, 0)
+    dist, _, _ = __get_dft_dist(model, samples, False, T, 0)
     return dist
 
 
 def get_threshold_based_dft_dist(model, samples, threshold):
-    return get_dft_dist(model, samples, True, 0, threshold)
+    return __get_dft_dist(model, samples, True, 0, threshold)
 
 
-def get_dft_dist(model, samples, tb, T, threshold):
+def __get_dft_dist(model, samples, tb, T, threshold):
     def forward(w, prev_p, model):
         CM = model.C @ model.M
         V = CM @ w
@@ -112,25 +58,18 @@ def get_dft_dist(model, samples, tb, T, threshold):
     gen = RouletteWheelGenerator(model.w)
     P = np.repeat(model.P0, samples, axis=1)
     has_converged = True
+    MAX_T = 200
+    MAX_TRIAL = 3
     max_t = 0
+    min_t = MAX_T + 1
     if tb:
         s = samples
         converged = None
 
-        t = 0
-        MAX_T = 200
-        MAX_TRIAL = 3
+        t = 1
         trials = 0
+        average_t = 0
         while s > 0 and trials < MAX_TRIAL:
-            if t >= MAX_T:  # reset long deliberations to generate new ones
-                if s == samples: # No sample converged
-                    print(f"No sample converged after {MAX_T}.")
-                    break
-                P = np.repeat(model.P0, s, axis=1)
-                print(f"Not converged after {MAX_T} : {s}. ")
-                print(f"Reset trial number {trials}...")
-                t = 0
-                trials += 1
             W = np.array([gen.generate() for _ in range(s)], dtype=np.double).squeeze().T
             if W.ndim == 1:
                 W = W.reshape(-1, s)
@@ -150,13 +89,27 @@ def get_dft_dist(model, samples, tb, T, threshold):
                 converged = np.hstack((converged, P[:, P_max >= threshold]))
 
             P = P[:, P_max < threshold]
+            converged_count = sum(P_max >= threshold)
+            average_t += t * converged_count
+            if converged_count > 0:
+                max_t = max(max_t, t)
+                min_t = min(min_t, t)
             s = P.shape[1]
             t += 1
+            if t >= MAX_T:  # reset long deliberations to generate new ones
+                if s == samples:  # No sample converged
+                    print(f"No sample converged after {MAX_T}.")
+                    break
+                P = np.repeat(model.P0, s, axis=1)
+                print(f"Not converged after {MAX_T} : {s}. ")
+                print(f"Reset trial number {trials}...")
+                t = 0
+                trials += 1
         if s != 0:
             has_converged = False
         P = converged
-        max_t = t
-        print(f"Maximum T: {max_t}")
+        average_t /= samples
+        print(f"T - min: {min_t}, max: {max_t}, avg:{average_t}")
     else:
         for t in range(1, T + 1):
             W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
@@ -169,67 +122,3 @@ def get_dft_dist(model, samples, tb, T, threshold):
         dist = np.append(dist, np.zeros(opts - len(dist)))
 
     return dist.reshape(-1, 1), has_converged, max_t
-
-
-def generate_fixed_time_DFT_samples(M, S, w, P0, n, t, parameters):
-    samples = []
-    for i in range(n):
-        dft = DFT(M, S, w, P0)
-        choices = [{
-            'W': None,
-            'P': P0.copy(),
-            'V': None,
-            'c': None,
-            't': 0
-        }]
-        for j in range(1, t):
-            dft.step()
-            P = dft.get_last_P()
-            V = dft.get_last_V()
-            W = dft.get_last_W()
-            choice_index = np.argmax(P, axis=0)
-            choice = np.zeros(P0.shape)
-            choice[choice_index] = 1
-            choices.append({
-                'W': W,
-                'P': P,
-                'V': V,
-                'c': choice,
-                't': j
-            })
-        samples.append(DFTSample(choices, np.arange(M.shape[0])))
-    return DFTDataSet(M, S, w, P0, samples, parameters)
-
-
-def generate_threshold_based_DFT_samples(M, S, w, P0, n, threshold, parameters):
-    samples = []
-    for i in range(n):
-        dft = DFT(M, S, w, P0)
-        choices = [{
-            'W': None,
-            'P': P0.copy(),
-            'V': None,
-            'c': None,
-            't': 0
-        }]
-        j = 1
-        max_p = 0
-        while max_p < threshold:
-            dft.step()
-            P = dft.get_last_P()
-            V = dft.get_last_V()
-            W = dft.get_last_W()
-            choice_index = np.argmax(P, axis=0)
-            choice = np.zeros(P0.shape)
-            choice[choice_index] = 1
-            choices.append({
-                'W': W,
-                'P': P,
-                'V': V,
-                'c': choice,
-                't': j
-            })
-            j += 1
-            max_p = P[choice_index] / P.clip(0).sum()
-        samples.append(DFTSample(choices, np.arange(M.shape[0])))
-    return DFTDataSet(M, S, w, P0, samples, parameters)
