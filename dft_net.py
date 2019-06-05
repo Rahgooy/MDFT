@@ -12,6 +12,9 @@ class DFT_Net(nn.Module):
         self.__set_C()
         self.__set_S()
 
+    def update_S(self):
+        self.__set_S()
+
     def __set_S(self):
         self.H = (torch.eye(2) * 2 - 1 + self.b) / 2
         self.S = torch.zeros((self.options_count, self.options_count))
@@ -43,19 +46,11 @@ class DFT_Net(nn.Module):
         for key in self.options:
             self.__setattr__(key, self.options[key])
 
-    def forward(self, w, prev_p, recalc_S=False):
-        if recalc_S:
-            S = torch.zeros((self.options_count, self.options_count))
-            for i in range(self.options_count):
-                for j in range(self.options_count):
-                    S[i, j] = self.__S(i, j)
-        else:
-            S = self.S
-
+    def forward(self, w, prev_p):
         CM = self.C @ self.M
         V = CM @ w
 
-        SP = S @ prev_p
+        SP = self.S @ prev_p
         return SP + V
 
     def __S(self, i, j):

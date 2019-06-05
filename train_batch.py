@@ -10,10 +10,10 @@ Examples:
 
 Options:
     -h --help                  Show this screen.
-    --niter=INT                Number of iterations. [default: 2000]
+    --niter=INT                Number of iterations. [default: 200]
     --nprint=INT               Number of iterations per print. [default: 10]
     --ntest=INT                Number of test samples for evaluations[default: 500]
-    --ntrain=INT               Number of train samples. [default: 500]
+    --ntrain=INT               Number of train samples. [default: 100]
     --i=STR                    input data set. [default: data/threshold_o_3.json]
     --o=STR                    output path. [default: results/learn_m_pref_origw_single.txt]
     --m                        Learn M. [default: False]
@@ -151,6 +151,7 @@ def train(dataset, opts):
         if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or total_error < ε:
             print("." * 70)
             print("Iter {}/{}(time per iter: {:0.3f}s)".format(it + 1, opts['niter'], time() - start))
+            print("err: {}".format(total_error))
             print("w: {}".format(model.w.T))
             print("best: {}".format(best_model["error"]))
             print("w: {}".format(best_model["w"]))
@@ -167,10 +168,10 @@ def update_fixed_parameters(data, model, opts):
     if not opts['m']:
         model.M = torch.tensor(data['M'], requires_grad=False)
     if not opts['s']:
-        model.b = torch.tensor([data['b']], requires_grad=False)
+        model.b = torch.tensor([float(data['b'])], requires_grad=False)
         model.φ1 = torch.tensor([data['φ1']], requires_grad=False)
         model.φ2 = torch.tensor([data['φ2']], requires_grad=False)
-
+    model.update_S()
 
 def initialize(data, opts):
     nn_opts = get_nn_options(data, opts)
@@ -222,7 +223,7 @@ def clamp_parameters(model, opts):
 
 def get_hyper_params(model, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e-2)
-    learning_rate = 0.005
+    learning_rate = 0.001
     momentum = 0.5
     if opts['m']:
         optim = torch.optim.RMSprop([model.M], lr=learning_rate)
@@ -303,7 +304,7 @@ def main():
     if not check_data(datasets, opts):
         return
 
-    best, it = train(datasets[:5], opts)
+    best, it = train(datasets, opts)
     return
     outPath = Path(output)
     outPath.parent.mkdir(exist_ok=True, parents=True)
