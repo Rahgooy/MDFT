@@ -27,6 +27,22 @@ class distances_tests(unittest.TestCase):
 
         self.assertTrue(np.allclose(actual, calculated))
 
+        # Paper's example:
+        # A = (1, 3), B = (2, 2), and C = (0, 2)
+        # b  10, then Dist(A, B) = 2, Dist(A, C) = 20,
+        # and Dist(B, C) = 22
+        A = np.array([1, 3])
+        B = np.array([2, 2])
+        C = np.array([0, 2])
+        b = 10
+        ab = hotaling(A, B, b)
+        ac = hotaling(A, C, b)
+        bc = hotaling(B, C, b)
+
+        self.assertEqual(ab, 2.0)
+        self.assertEqual(ac, 20.0)
+        self.assertEqual(bc, 22.0)
+
 
 if __name__ == "__main__":
     unittest.main()
