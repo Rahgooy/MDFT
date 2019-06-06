@@ -14,7 +14,7 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 10]
     --ntest=INT                Number of test samples for evaluations[default: 500]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/threshold_o_3.json]
+    --i=STR                    input data set. [default: data/busemeyer.json]
     --o=STR                    output path. [default: results/learn_m_pref_origw_single.txt]
     --m                        Learn M. [default: False]
     --w                        Learn W. [default: True]
@@ -28,7 +28,7 @@ from time import time
 
 import torch
 from scipy import stats
-from dft import DFT
+from dft import DFT, get_threshold_based_dft_dist
 from dft_net import DFT_Net
 from helpers.distances import hotaling_S
 from helpers.weight_generator import RouletteWheelGenerator
@@ -166,12 +166,13 @@ def update_fixed_parameters(data, model, opts):
     if not opts['w']:
         model.w = np.array(data['w'])
     if not opts['m']:
-        model.M = torch.tensor(data['M'], requires_grad=False)
+        model.M = torch.tensor(data['M'], requires_grad=False, dtype=torch.float)
     if not opts['s']:
         model.b = torch.tensor([float(data['b'])], requires_grad=False)
-        model.φ1 = torch.tensor([data['φ1']], requires_grad=False)
-        model.φ2 = torch.tensor([data['φ2']], requires_grad=False)
+        model.φ1 = torch.tensor([float(data['φ1'])], requires_grad=False)
+        model.φ2 = torch.tensor([float(data['φ2'])], requires_grad=False)
     model.update_S()
+
 
 def initialize(data, opts):
     nn_opts = get_nn_options(data, opts)
