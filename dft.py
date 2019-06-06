@@ -49,10 +49,10 @@ def get_threshold_based_dft_dist(model, samples, threshold):
 
 
 def __get_dft_dist(model, samples, tb, T, threshold):
-    def forward(w, prev_p, model):
-        CM = model.C @ model.M
+    def forward(CM, w, prev_p, model):
         V = CM @ w
-        SP = model.S @ prev_p
+        E = np.random.randn(P.shape[0], P.shape[1])
+        SP = prev_p + model.S @ prev_p + E
         return SP + V
 
     gen = RouletteWheelGenerator(model.w)
@@ -62,6 +62,7 @@ def __get_dft_dist(model, samples, tb, T, threshold):
     MAX_TRIAL = 3
     max_t = 0
     min_t = MAX_T + 1
+    CM = model.C @ model.M
     if tb:
         s = samples
         converged = None
@@ -73,15 +74,15 @@ def __get_dft_dist(model, samples, tb, T, threshold):
             W = np.array([gen.generate() for _ in range(s)], dtype=np.double).squeeze().T
             if W.ndim == 1:
                 W = W.reshape(-1, s)
-            P = forward(W, P, model)
+            P = forward(CM, W, P, model)
 
-            P_min = P.min(axis=0)
-            P_max = P.max(axis=0) - P_min
-            P_sum = (P - P_min).sum(axis=0)
+            # P_min = P.min(axis=0)
+            # P_max = P.max(axis=0) - P_min
+            # P_sum = (P - P_min).sum(axis=0)
+            #
+            # P_max = P_max / P_sum
 
-            P_max = P_max / P_sum
-
-            # P_max = P.max(axis=0)
+            P_max = P.max(axis=0)
 
             if converged is None:
                 converged = P[:, P_max >= threshold]
@@ -113,7 +114,7 @@ def __get_dft_dist(model, samples, tb, T, threshold):
     else:
         for t in range(1, T + 1):
             W = np.array([gen.generate() for _ in range(samples)]).squeeze().T
-            P = forward(W, P, model)
+            P = forward(CM, W, P, model)
 
     choice_indices = P.argmax(axis=0)
     dist = np.array(np.bincount(choice_indices), dtype=np.double) / samples

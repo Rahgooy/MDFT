@@ -39,7 +39,6 @@ class DFT_Net(nn.Module):
             'P0': np.zeros((3, 1)),
             'w': np.ones((2, 1)) / 2,
         }
-        self.D = None
         for key in options:
             if options[key] is not None and key in self.options:
                 self.options[key] = options[key]
