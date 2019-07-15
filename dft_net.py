@@ -57,7 +57,7 @@ class DFT_Net(nn.Module):
         d = dm @ self.H @ dm
         d = d * d
 
-        s = self.φ1 * torch.exp(-self.φ2 * d)
+        s = self.φ2 * torch.exp(-self.φ1 * d)
         if i == j:
             return 1 - s
         return -s

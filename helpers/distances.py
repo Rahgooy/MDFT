@@ -17,12 +17,17 @@ def hotaling(o1, o2, b):
 
 
 def hotaling_S_from_D(D, φ1, φ2):
-    return np.eye(D.shape[0]) - φ1 * np.exp(-φ2 * D ** 2)
+    return np.eye(D.shape[0]) - φ2 * np.exp(-φ1 * D ** 2)
 
 
-def hotaling_S(M, φ1, φ2, b):
+def hotaling_D(M, b):
     D = np.zeros((M.shape[0], M.shape[0]))
     for i in range(M.shape[0]):
         for j in range(M.shape[0]):
             D[i][j] = hotaling(M[i], M[j], b)
+    return D
+
+
+def hotaling_S(M, φ1, φ2, b):
+    D = hotaling_D(M, b)
     return hotaling_S_from_D(D, φ1, φ2)
