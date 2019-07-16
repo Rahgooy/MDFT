@@ -10,227 +10,29 @@ Examples:
 
 Options:
     -h --help                  Show this screen.
-    --niter=INT                Number of iterations. [default: 200]
+    --niter=INT                Number of iterations. [default: 100]
     --nprint=INT               Number of iterations per print. [default: 10]
     --ntest=INT                Number of test samples for evaluations[default: 500]
-    --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/busemeyer.json]
+    --ntrain=INT               Number of train samples. [default: 20]
+    --i=STR                    input data set. [default: data/set4.json]
     --o=STR                    output path. [default: results/learn_m_pref_origw_single.txt]
     --m                        Learn M. [default: False]
     --w                        Learn W. [default: True]
     --s                        Learn S. [default: False]
 """
-import functools
 import json
-import operator
-from random import shuffle
 from time import time
 
-import torch
-from scipy import stats
+from busemeyer.distfunct import distfunct
+from busemeyer.simMDF import simMDF
 from dft import DFT, get_threshold_based_dft_dist
-from dft_net import DFT_Net
 from helpers.distances import hotaling_S
-from helpers.weight_generator import RouletteWheelGenerator
 from docpie import docpie
 import numpy as np
 from pprint import pprint
 from pathlib import Path
 from helpers.evaluation import dft_kl
-
-
-def train(dataset, opts):
-    best_model = None
-    best_error = 1e100
-    MAX_T = 100
-    ε = 1e-4
-
-    it = 0
-    delta_w = 0
-    model = None
-    for it in range(opts['niter']):
-        start = time()
-        batch_loss = 0
-        total_error = 0
-        W_list = []
-        for data in dataset:
-            samples = opts['ntrain'] // len(dataset)
-            if model is None:  # Initialize
-                model = initialize(data, opts)
-                print("Learning rate : {}".format(opts['lr']))
-            else:
-                update_fixed_parameters(data, model, opts)
-            freqs = np.random.multinomial(samples, data['freq'])
-            per_class_samples = {x: freqs[x] for x in range(model.options_count)}
-            # per_class_samples = {x: int(data['freq'][x] * samples) for x in range(model.options_count)}
-            # total = sum(per_class_samples.values())
-            # if total < samples:
-            #     f = np.array(data['freq'])
-            #     diff = f * samples - np.round(f * samples)
-            #     x = diff.argmax()
-            #     per_class_samples[x] += 1
-
-            predictions = {x: [] for x in range(model.options_count)}
-            P = torch.Tensor(np.repeat(model.P0, samples, axis=1).tolist())
-            gen = RouletteWheelGenerator(model.w)
-            s = samples
-            t = 0
-            threshold = 0.7  # data['threshold']
-            converged = []
-            while s > 0 and t < MAX_T:
-                W = np.array([gen.generate() for _ in range(s)]).squeeze().T
-                if W.ndim == 1:
-                    W = W.reshape(-1, s)
-                W = torch.Tensor(W.tolist())
-                W.requires_grad = opts['w']
-                W_list.append(W)
-                P = model.forward(W, P)
-
-                P_min, _ = P.min(0)
-                P_min = P_min.detach().numpy()
-                P_max, _ = P.max(0)
-                P_max = P_max.detach().numpy()
-                P_max -= P_min
-                P_sum = (P.detach().numpy() - P_min).sum(axis=0)
-
-                P_max = P_max / P_sum
-                s = 0
-                for i in range(P.shape[1]):
-                    if P_max[i] >= threshold:
-                        converged.append(P[:, i])
-                    else:
-                        s += 1
-                idx = np.argwhere(P_max < threshold).squeeze(axis=1)
-                P = P[:, idx]
-                t += 1
-
-            for i in range(s):
-                converged.append(P[:, i])
-
-            for i in range(samples):
-                pred = np.argmax(converged[i].detach().numpy()).tolist()
-                predictions[pred].append(converged[i])
-
-            pairs, confusion_matrix = align_samples(per_class_samples, predictions)
-
-            for i in range(len(pairs)):
-                target, p = pairs[i]
-                s = p.view(1, -1)
-                batch_loss += opts['loss'](s, torch.tensor([target]))
-
-            total_error += batch_loss.detach().numpy()
-            if opts['m']:
-                opts['optimizer'].zero_grad()
-
-            batch_loss.backward(retain_graph=True)
-
-            if opts['w']:
-                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list])
-                W_grad = W_grad.sum(axis=0)
-                W_grad /= len(W_list)
-                delta_w = opts['momentum'] * delta_w + opts['lr'] * 1 * W_grad
-                model.w -= delta_w.reshape(-1, 1)
-                model.w = model.w.clip(0.1, 0.9)
-                model.w /= model.w.sum()
-
-            if opts['m']:
-                optimizer.step()
-                clamp_parameters(model, opts)
-
-        total_error /= opts['ntrain']
-        if total_error < best_error:
-            best_error = total_error
-            best_model = {
-                "M": model.M.data.numpy().copy().tolist(),
-                "φ1": float(model.φ1.data.numpy().copy()[0]),
-                "φ2": float(model.φ2.data.numpy().copy()[0]),
-                "w": model.w.copy().tolist(),
-                "error": best_error,
-                "iter": it + 1
-            }
-        if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or total_error < ε:
-            print("." * 70)
-            print("Iter {}/{}(time per iter: {:0.3f}s)".format(it + 1, opts['niter'], time() - start))
-            print("err: {}".format(total_error))
-            print("w: {}".format(model.w.T))
-            print("best: {}".format(best_model["error"]))
-            print("w: {}".format(best_model["w"]))
-
-        if total_error < ε:
-            break
-
-    return best_model, it
-
-
-def update_fixed_parameters(data, model, opts):
-    if not opts['w']:
-        model.w = np.array(data['w'])
-    if not opts['m']:
-        model.M = torch.tensor(data['M'], requires_grad=False, dtype=torch.float)
-    if not opts['s']:
-        model.b = torch.tensor([float(data['b'])], requires_grad=False)
-        model.φ1 = torch.tensor([float(data['φ1'])], requires_grad=False)
-        model.φ2 = torch.tensor([float(data['φ2'])], requires_grad=False)
-    model.update_S()
-
-
-def initialize(data, opts):
-    nn_opts = get_nn_options(data, opts)
-    model = DFT_Net(nn_opts)
-    loss, lr, momentum, optimizer = get_hyper_params(model, opts)
-    opts['lr'] = lr
-    opts['loss'] = loss
-    opts['momentum'] = momentum
-    opts['optimizer'] = optimizer
-    return model
-
-
-def align_samples(per_class_samples, pred):
-    predictions = pred.copy()
-    per_class = per_class_samples.copy()
-    pairs = []
-    options = len(per_class_samples)
-    confusion_matrix = np.zeros((options, options))
-    for cls in np.random.permutation(options):
-        predictions[cls].sort(key=lambda p: p.detach().numpy().max())
-        while per_class[cls] > 0 and len(predictions[cls]) > 0:
-            per_class[cls] -= 1
-            a = cls
-            pred = predictions[cls].pop()
-            pairs.append((a, pred))
-            confusion_matrix[cls, cls] += 1
-
-    remaining = list(predictions.values())
-    remaining = functools.reduce(operator.iconcat, remaining, [])
-    shuffle(remaining)
-    while len(remaining) > 0:
-        for cls in np.random.permutation(options):
-            if len(remaining) > 0 and per_class[cls] > 0:
-                remaining.sort(key=lambda p: p[cls])
-                per_class[cls] -= 1
-                a = cls
-                pred = remaining.pop()
-                pairs.append((a, pred))
-                label = pred.detach().numpy().argmax()
-                confusion_matrix[cls, label] += 1
-
-    return pairs, confusion_matrix
-
-
-def clamp_parameters(model, opts):
-    if opts['m']:
-        model.M.data.clamp_(min=0)
-
-
-def get_hyper_params(model, opts):
-    loss_func = torch.nn.MultiMarginLoss(margin=1e-2)
-    learning_rate = 0.001
-    momentum = 0.5
-    if opts['m']:
-        optim = torch.optim.RMSprop([model.M], lr=learning_rate)
-    else:
-        optim = torch.optim.RMSprop([model.M], lr=learning_rate)
-    return loss_func, learning_rate, momentum, optim
+from trainer import train
 
 
 def get_options():
@@ -247,49 +49,42 @@ def get_options():
     return opts
 
 
-def check_data(dataset, opts):
-    params = {'w': 'w', 'M': 'm', 'φ1': 's', 'φ2': 's', 'b': 's'}
-    passed = True
-    for p in params:
-        if opts[params[p]]:
-            w = dataset[0][p]
-            for d in dataset:
-                if d[p] != w:
-                    print(f"Dataset check failed: cannot learn {p} when data samples are "
-                          f"generated with different {p}.")
-                    passed = False
-                    break
-    print("Dataset check passed.")
-    return passed
-
-
-def get_nn_options(data, opts):
-    M = torch.tensor(data['M'], requires_grad=False)
-    o, a = M.shape[0], M.shape[1]
-    if opts['m']:
-        M = torch.rand((o, a), requires_grad=True)
-        M.data.clamp_(min=0)
-
-    if opts['w']:
-        w = np.ones((a, 1))
-        w /= w.sum()
-    else:
+def simulate(data, opts):
+    MM = np.array(data['M'])
+    φ1 = data['φ1']
+    φ2 = data['φ2']
+    b = data['b']
+    σ2 = data['sigma2']
+    freq1 = np.zeros((MM.shape[0], MM.shape[1]))
+    freq2 = np.zeros((MM.shape[0], MM.shape[1]))
+    for i in range(MM.shape[0]):
+        M = MM[i, :, :]
+        S = hotaling_S(M, φ1, φ2, b)
+        D, _ = distfunct(M, b, φ1, φ2)
         w = np.array(data['w'])
-    options = {
-        'φ1': torch.tensor([0.01], requires_grad=True) if opts['s']
-        else torch.tensor([data['φ1']], requires_grad=False),
-        'φ2': torch.tensor([0.01], requires_grad=True) if opts['s']
-        else torch.tensor([data['φ2']], requires_grad=False),
-        'b': torch.tensor([10.0], requires_grad=True) if opts['s']
-        else torch.tensor([float(data['b'])], requires_grad=False),
-        'options_count': o,
-        'attr_count': a,
-        'M': M,
-        'P0': np.array(data['P0']),
-        'w': w,
-    }
-
-    return options
+        P0 = np.zeros((M.shape[0], 1))
+        m = DFT(M, S, w, P0, σ2)
+        f, T = simMDF(D, m.C, M, w, data["threshold"], σ2, 30000)
+        freq1[i] = f
+        f, converged = get_threshold_based_dft_dist(m, 30000, data["threshold"], data["relative"])
+        freq2[i] = f.T
+    print("M:")
+    print(MM)
+    print("w: ")
+    print(w)
+    print("S params:")
+    print(φ1, φ2, b)
+    print("S:")
+    print(S)
+    print("Simulations")
+    print(freq1)
+    print(freq2)
+    print(freq1 - freq2)
+    print(np.abs(freq1 - freq2).max())
+    print("Actual")
+    print(np.array(data['freq']) - freq1)
+    print(np.abs(np.array(data['freq']) - freq1).max())
+    print(np.abs(np.array(data['freq']) - freq2).max())
 
 
 def main():
@@ -300,19 +95,19 @@ def main():
 
     with open(opts['i'], 'r', encoding="UTF-8") as f:
         data = json.load(f)
-    datasets = data['datasets']
+    datasets = data['datasets'][5]
 
-    if not check_data(datasets, opts):
-        return
-
+    # simulate(datasets[0], opts)
+    # if not check_data(datasets, opts):
+    #     return
     best, it = train(datasets, opts)
+    print(f"Time elapsed {time() - main_start:0.2f} seconds")
     return
     outPath = Path(output)
     outPath.parent.mkdir(exist_ok=True, parents=True)
     with outPath.open(mode='w') as f:
         data.summary(f)
         print("============================= Settings ==============================", file=f)
-        print("Repetition : {}".format(rep + 1), file=f)
         print("Number of Iterations : {}[max{}, best{}]".format(it + 1, niter, best["iter"]), file=f)
         print("Learning rate : {}".format(lr), file=f)
         print("Optimizer: {}".format(optim_name), file=f)

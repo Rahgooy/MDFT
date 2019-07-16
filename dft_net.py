@@ -2,8 +2,6 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from helpers.distances import hotaling_matrix
-
 
 class DFT_Net(nn.Module):
     def __init__(self, options):
@@ -38,6 +36,7 @@ class DFT_Net(nn.Module):
             'φ2': 1,
             'P0': np.zeros((3, 1)),
             'w': np.ones((2, 1)) / 2,
+            'σ2': 1
         }
         for key in options:
             if options[key] is not None and key in self.options:
@@ -47,10 +46,10 @@ class DFT_Net(nn.Module):
 
     def forward(self, w, prev_p):
         CM = self.C @ self.M
+        E = self.σ2 * self.C @ torch.randn(self.options_count, prev_p.shape[1])
         V = CM @ w
-
         SP = self.S @ prev_p
-        return SP + V
+        return SP + V + E
 
     def __S(self, i, j):
         dm = self.M[j] - self.M[i]

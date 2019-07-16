@@ -9,25 +9,9 @@ from pathlib import Path
 def generate_data(params):
     """
     Generate MDFT samples using specified parameters.
-    Parameters include:
-        tb: threshold based MDFT
-        threshold:
-        M:
-        n_samples:
-        T:
-        φ1:
-        φ2:
-        w:
-        b:
-        min_non_zero_freq:
-        min_freq_accepted:
-        p:
-        post:
-        save:
-    :return:
     """
     M, φ1, φ2, b, w, n_samples = params['M'], params['φ1'], params['φ2'], params['b'], params['w'], params['n_samples']
-    T, tb, threshold = params['T'], params['tb'], params['threshold']
+    T, tb, threshold, relative = params['T'], params['tb'], params['threshold'], params['relative']
 
     options = M.shape[0]
     P0 = np.zeros((options, 1))
@@ -36,7 +20,7 @@ def generate_data(params):
     converged = True
     max_t = T
     if tb:
-        dist, converged, max_t = get_threshold_based_dft_dist(model, n_samples, threshold)
+        dist, converged, max_t = get_threshold_based_dft_dist(model, n_samples, threshold, relative)
     else:
         dist = get_fixed_T_dft_dist(model, n_samples, T)
 
@@ -47,6 +31,7 @@ def generate_data(params):
                "dist": "hotaling",
                "tb": tb,
                "threshold": threshold,
+               "relative": relative,
                "T": T,
                'freq': dist.squeeze().tolist(),
                'S': model.S.tolist(),
@@ -86,6 +71,7 @@ def generate_random_dataset(n_samples, n_datasets, n_options, path, tb, params):
     for i in range(n_datasets):
         while True:
             p['threshold'] = params['threshold'] if 'threshold' in params else 0
+            p['relative'] = params['relative'] if 'relative' in params else True
             p['T'] = params['T'] if 'T' in params else np.random.randint(50, 100)
             p['M'] = params['M'] if 'M' in params else np.random.uniform(1.0, 5.0, (n_options, 2))
             p['b'] = params['b'] if 'b' in params else 10
@@ -111,7 +97,9 @@ def generate_random_dataset(n_samples, n_datasets, n_options, path, tb, params):
                 if (freq > 0).sum() >= min_non_zero_freq:
                     break
         datasets.append(data)
+        print("=" * 50)
         print("data set number {} is generated. N_options : {}".format(i + 1, n_options))
+        print("=" * 50)
     p = Path(path)
     p.parent.mkdir(exist_ok=True, parents=True)
     with p.open(mode="w") as f:
@@ -126,13 +114,14 @@ if __name__ == "__main__":
         "φ1": 0.22,
         "φ2": 0.05,
         "b": 12,
-        "w": 0.3,
-        "threshold": 0.7,
+        "w": 0.7,
+        "threshold": 10,
+        "relative": False,
         "T": 100,
     }
     generate_random_dataset(n_samples=5000,
                             n_datasets=10,
                             n_options=3,
-                            path="data/threshold_o_3.json",
+                            path="data/threshold_o_3_absolute.json",
                             tb=True,
                             params=params)
