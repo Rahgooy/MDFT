@@ -11,7 +11,7 @@ Examples:
 Options:
     -h --help                  Show this screen.
     --niter=INT                Number of iterations. [default: 1000]
-    --nprint=INT               Number of iterations per print. [default: 100]
+    --nprint=INT               Number of iterations per print. [default: 1500]
     --ntest=INT                Number of test samples for evaluations[default: 500]
     --ntrain=INT               Number of train samples. [default: 100]
     --i=STR                    input data set. [default: data/set4.json]
@@ -96,48 +96,49 @@ def main():
 
     with open(opts['i'], 'r', encoding="UTF-8") as f:
         data = json.load(f)
-    datasets = data['datasets'][5]
-    if opts['m']:
-        M_list = []
-        freq_list = []
-        for j in range(len(datasets['M'])):
-            dataset = datasets.copy()
-            dataset['M'] = [datasets['M'][j]]
-            dataset['freq'] = [datasets['freq'][j]]
-            best, it = train(dataset, opts)
-            M_list.append(best['M'])
-        for M_ in M_list:
-            M = np.array(M_)
-            φ1 = datasets['φ1']
-            φ2 = datasets['φ2']
-            b = datasets['b']
-            σ2 = datasets['sigma2']
-            w = np.array(datasets['w'])
-            S = hotaling_S(M, φ1, φ2, b)
-            P0 = np.zeros((M.shape[0], 1))
-            m = DFT(M, S, w, P0, σ2)
-            f, converged = get_threshold_based_dft_dist(m, 10000, datasets["threshold"], datasets["relative"])
-            freq_list.append(f.squeeze())
+    for datasets in data['datasets']:
+        print("*" * 70)
+        if opts['m']:
+            M_list = []
+            freq_list = []
+            for j in range(len(datasets['M'])):
+                dataset = datasets.copy()
+                dataset['M'] = [datasets['M'][j]]
+                dataset['freq'] = [datasets['freq'][j]]
+                best, it = train(dataset, opts)
+                M_list.append(best['M'])
+            for M_ in M_list:
+                M = np.array(M_)
+                φ1 = datasets['φ1']
+                φ2 = datasets['φ2']
+                b = datasets['b']
+                σ2 = datasets['sigma2']
+                w = np.array(datasets['w'])
+                S = hotaling_S(M, φ1, φ2, b)
+                P0 = np.zeros((M.shape[0], 1))
+                m = DFT(M, S, w, P0, σ2)
+                f, converged = get_threshold_based_dft_dist(m, 10000, datasets["threshold"], datasets["relative"])
+                freq_list.append(f.squeeze())
 
-        np.set_printoptions(precision=4, suppress=True)
-        print("pred M:")
-        M = np.vstack(M_list)
-        print("[")
-        for j in range(M.shape[0]):
-            for i in M[j]:
-                print(f"{i:0.4f} ", end="")
-            if j < M.shape[0] - 1:
-                print(";")
-        print("]")
-        print("pred freq:")
-        print(np.array(freq_list))
-        print("Actual freq:")
-        print(np.array(datasets['freq']))
-        sse = np.array(datasets['freq']) - np.array(freq_list)
-        sse = (sse * sse).sum()
-        print(f"SSE: {sse}")
-    else:
-        best, it = train(datasets, opts)
+            np.set_printoptions(precision=4, suppress=True)
+            print("pred M:")
+            M = np.vstack(M_list)
+            print("[")
+            for j in range(M.shape[0]):
+                for i in M[j]:
+                    print(f"{i:0.4f} ", end="")
+                if j < M.shape[0] - 1:
+                    print(";")
+            print("]")
+            print("pred freq:")
+            print(np.array(freq_list))
+            print("Actual freq:")
+            print(np.array(datasets['freq']))
+            sse = np.array(datasets['freq']) - np.array(freq_list)
+            sse = (sse * sse).sum()
+            print(f"SSE: {sse}")
+        else:
+            best, it = train(datasets, opts)
     print(f"Time elapsed {time() - main_start:0.2f} seconds")
 
     global_profiler.print_profile()
