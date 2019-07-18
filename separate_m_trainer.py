@@ -1,6 +1,7 @@
 from time import time
 
 import numpy as np
+from numpy.random.mtrand import permutation
 
 from helpers.profiling import profile, global_profiler as profiler
 from trainer_helpers import initialize, update_fixed_parameters, get_per_class_samples, get_model_predictions, align_samples, \
@@ -18,9 +19,9 @@ def train(dataset, opts):
     start = time()
     no_progress_it = 0
     for it in range(opts['niter']):
-        batch_loss, W_list = 0, []
+        loss = 0
         avg_t = 0
-        for j in range(len(dataset['M'])):
+        for j in permutation(len(dataset['M'])):
             if model is None:  # Initialize
                 model = initialize(dataset, opts, j)
                 # print("Learning rate : {}".format(opts['lr']))
@@ -31,16 +32,27 @@ def train(dataset, opts):
             predictions, W_list, a_t, max_t = get_model_predictions(model, opts)
             avg_t += a_t
             pairs, confusion_matrix = align_samples(per_class_samples, predictions)
-            batch_loss += compute_loss(opts, pairs, model)
+            l = compute_loss(opts, pairs, model)
+            loss += l
+            if opts['w']:
+                l.backward()
+                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]).sum(axis=0) / len(W_list)
+                delta_w = opts['momentum'] * delta_w + opts['lr'] * W_grad
+                model.w -= delta_w.reshape(-1, 1)
+                model.w = model.w.clip(0.1, 0.9)
+                model.w /= model.w.sum()
 
         avg_t /= len(dataset['M'])
-        error = batch_loss.detach().numpy() / opts['ntrain']
+        error = loss.detach().numpy() / (opts['ntrain'] * len(dataset['M']))
         if error < best_error:
             best_error = error
             best_model = {
                 "M": model.M.data.numpy().copy().tolist(),
                 "φ1": float(model.φ1.data.numpy().copy()[0]),
                 "φ2": float(model.φ2.data.numpy().copy()[0]),
+                "b": float(model.b.data.numpy().copy()[0]),
+                "σ2": model.σ2,
+                "threshold": model.threshold,
                 "w": model.w.copy().tolist(),
                 "error": best_error,
                 "iter": it + 1,
@@ -57,17 +69,10 @@ def train(dataset, opts):
             break
 
         profiler.start("calc_grad")
-        if opts['w']:
-            batch_loss.backward()
-            W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]).sum(axis=0) / len(W_list)
-            delta_w = opts['momentum'] * delta_w + opts['lr'] / len(dataset['M']) * W_grad
-            model.w -= delta_w.reshape(-1, 1)
-            model.w = model.w.clip(0.1, 0.9)
-            model.w /= model.w.sum()
 
         if opts['m']:
             opts['optimizer'].zero_grad()
-            batch_loss.backward()
+            loss.backward()
             opts['optimizer'].step()
             clamp_parameters(model, opts)
             model.update_S()

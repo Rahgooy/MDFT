@@ -40,9 +40,9 @@ def print_progress(best_model, error, it, model, opts, time):
     #     print("current M: \n{}".format(model.M.detach().numpy()))
     #     print("best M: \n{}".format(np.array(best_model["M"])))
 
-    if opts['w']:
-        print("current w: {}".format(model.w.T))
-        print("best w: {}".format(best_model["w"]))
+    # if opts['w']:
+    #     print("current w: {}".format(model.w.T))
+    #     print("best w: {}".format(best_model["w"]))
 
 
 @profile
@@ -167,10 +167,9 @@ def align_samples(per_class_samples, preds):
         p = pred.detach().numpy()
         label = np.argmax(p)
         cls = remaining_cls[np.argmax(p[remaining_cls])]
-        if len(remaining) > 0 and per_class[cls] > 0:
-            per_class[cls] -= 1
-            pairs.append((cls, pred))
-            confusion_matrix[cls, label] += 1
+        per_class[cls] -= 1
+        pairs.append((cls, pred))
+        confusion_matrix[cls, label] += 1
         if per_class[cls] == 0:
             remaining_cls.remove(cls)
 
@@ -185,8 +184,8 @@ def clamp_parameters(model, opts):
 
 @profile
 def get_hyper_params(model, opts):
-    loss_func = torch.nn.MultiMarginLoss(margin=1e-1)
-    learning_rate = 0.001 if opts['w'] else 0.05
+    loss_func = torch.nn.MultiMarginLoss(margin=1e-2)
+    learning_rate = 0.005 if opts['w'] else 0.05
     momentum = 0.5
     if opts['m']:
         optim = torch.optim.SGD([model.M], lr=learning_rate, momentum=momentum)
