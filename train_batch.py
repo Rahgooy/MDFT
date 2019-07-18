@@ -10,14 +10,14 @@ Examples:
 
 Options:
     -h --help                  Show this screen.
-    --niter=INT                Number of iterations. [default: 100]
-    --nprint=INT               Number of iterations per print. [default: 10]
+    --niter=INT                Number of iterations. [default: 1000]
+    --nprint=INT               Number of iterations per print. [default: 100]
     --ntest=INT                Number of test samples for evaluations[default: 500]
-    --ntrain=INT               Number of train samples. [default: 20]
+    --ntrain=INT               Number of train samples. [default: 100]
     --i=STR                    input data set. [default: data/set4.json]
     --o=STR                    output path. [default: results/learn_m_pref_origw_single.txt]
-    --m                        Learn M. [default: False]
-    --w                        Learn W. [default: True]
+    --m                        Learn M. [default: True]
+    --w                        Learn W. [default: False]
     --s                        Learn S. [default: False]
 """
 import json
@@ -32,6 +32,7 @@ import numpy as np
 from pprint import pprint
 from pathlib import Path
 from helpers.evaluation import dft_kl
+from helpers.profiling import global_profiler
 from trainer import train
 
 
@@ -64,9 +65,9 @@ def simulate(data, opts):
         w = np.array(data['w'])
         P0 = np.zeros((M.shape[0], 1))
         m = DFT(M, S, w, P0, σ2)
-        f, T = simMDF(D, m.C, M, w, data["threshold"], σ2, 30000)
+        f, T = simMDF(D, m.C, M, w, data["threshold"], σ2, 10000)
         freq1[i] = f
-        f, converged = get_threshold_based_dft_dist(m, 30000, data["threshold"], data["relative"])
+        f, converged = get_threshold_based_dft_dist(m, 10000, data["threshold"], data["relative"])
         freq2[i] = f.T
     print("M:")
     print(MM)
@@ -96,12 +97,50 @@ def main():
     with open(opts['i'], 'r', encoding="UTF-8") as f:
         data = json.load(f)
     datasets = data['datasets'][5]
+    if opts['m']:
+        M_list = []
+        freq_list = []
+        for j in range(len(datasets['M'])):
+            dataset = datasets.copy()
+            dataset['M'] = [datasets['M'][j]]
+            dataset['freq'] = [datasets['freq'][j]]
+            best, it = train(dataset, opts)
+            M_list.append(best['M'])
+        for M_ in M_list:
+            M = np.array(M_)
+            φ1 = datasets['φ1']
+            φ2 = datasets['φ2']
+            b = datasets['b']
+            σ2 = datasets['sigma2']
+            w = np.array(datasets['w'])
+            S = hotaling_S(M, φ1, φ2, b)
+            P0 = np.zeros((M.shape[0], 1))
+            m = DFT(M, S, w, P0, σ2)
+            f, converged = get_threshold_based_dft_dist(m, 10000, datasets["threshold"], datasets["relative"])
+            freq_list.append(f.squeeze())
 
-    # simulate(datasets[0], opts)
-    # if not check_data(datasets, opts):
-    #     return
-    best, it = train(datasets, opts)
+        np.set_printoptions(precision=4, suppress=True)
+        print("pred M:")
+        M = np.vstack(M_list)
+        print("[")
+        for j in range(M.shape[0]):
+            for i in M[j]:
+                print(f"{i:0.4f} ", end="")
+            if j < M.shape[0] - 1:
+                print(";")
+        print("]")
+        print("pred freq:")
+        print(np.array(freq_list))
+        print("Actual freq:")
+        print(np.array(datasets['freq']))
+        sse = np.array(datasets['freq']) - np.array(freq_list)
+        sse = (sse * sse).sum()
+        print(f"SSE: {sse}")
+    else:
+        best, it = train(datasets, opts)
     print(f"Time elapsed {time() - main_start:0.2f} seconds")
+
+    global_profiler.print_profile()
     return
     outPath = Path(output)
     outPath.parent.mkdir(exist_ok=True, parents=True)
@@ -126,8 +165,6 @@ def main():
         model_S = hotaling_S(model_M, best["φ1"], best["φ2"], model.b)
         model_dft = DFT(model_M, model_S, np.array(best["w"]), model.P0)
         kl, actual_dist, model_dist = dft_kl(data, model_dft, ntest, T)
-        avg = np.array([d.choice for d in data.samples])
-        avg = np.average(avg, axis=0)
 
         print("Test sample size: {}".format(ntest), file=f)
         print("Actual dist: {}".format(actual_dist), file=f)

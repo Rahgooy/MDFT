@@ -20,6 +20,16 @@ class DFT_Net(nn.Module):
             for j in range(self.options_count):
                 self.S[i, j] = self.__S(i, j)
 
+    def __S(self, i, j):
+        dm = self.M[j] - self.M[i]
+        d = dm @ self.H @ dm
+        d = d * d
+
+        s = self.φ2 * torch.exp(-self.φ1 * d)
+        if i == j:
+            return 1 - s
+        return -s
+
     def __set_C(self):
         self.C = torch.ones((self.options_count, self.options_count)) * -(1 / (self.options_count - 1))
         self.C.requires_grad = False
@@ -36,7 +46,8 @@ class DFT_Net(nn.Module):
             'φ2': 1,
             'P0': np.zeros((3, 1)),
             'w': np.ones((2, 1)) / 2,
-            'σ2': 1
+            'σ2': 1,
+            'threshold': 5
         }
         for key in options:
             if options[key] is not None and key in self.options:
@@ -50,13 +61,3 @@ class DFT_Net(nn.Module):
         V = CM @ w
         SP = self.S @ prev_p
         return SP + V + E
-
-    def __S(self, i, j):
-        dm = self.M[j] - self.M[i]
-        d = dm @ self.H @ dm
-        d = d * d
-
-        s = self.φ2 * torch.exp(-self.φ1 * d)
-        if i == j:
-            return 1 - s
-        return -s

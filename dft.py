@@ -45,7 +45,7 @@ def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
 
     P = np.repeat(model.P0, samples, axis=1)
     has_converged = True
-    MAX_T = 1000
+    MAX_T = 100000
     CM = model.C @ model.M
     if tb:
         n = samples
