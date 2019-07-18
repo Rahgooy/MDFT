@@ -3,15 +3,15 @@ Learn MDFT using a recurrent neural network.
 A dataset of different MDFT models is used to estimate common parameters used in those models.
 
 Usage:
-    train_batch.py [options]
+    main.py [options]
 
 Examples:
-    train_batch.py --niter=100
+    main.py --niter=100
 
 Options:
     -h --help                  Show this screen.
     --niter=INT                Number of iterations. [default: 1000]
-    --nprint=INT               Number of iterations per print. [default: 1500]
+    --nprint=INT               Number of iterations per print. [default: 100]
     --ntest=INT                Number of test samples for evaluations[default: 500]
     --ntrain=INT               Number of train samples. [default: 100]
     --i=STR                    input data set. [default: data/set4.json]
@@ -33,7 +33,7 @@ from pprint import pprint
 from pathlib import Path
 from helpers.evaluation import dft_kl
 from helpers.profiling import global_profiler
-from trainer import train
+from separate_m_trainer import train
 
 
 def get_options():
@@ -136,7 +136,7 @@ def main():
             print(np.array(datasets['freq']))
             sse = np.array(datasets['freq']) - np.array(freq_list)
             sse = (sse * sse).sum()
-            print(f"SSE: {sse}")
+            print(f"SSE: {sse:0.4f}")
         else:
             best, it = train(datasets, opts)
     print(f"Time elapsed {time() - main_start:0.2f} seconds")

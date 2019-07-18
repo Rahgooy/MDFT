@@ -1,7 +1,7 @@
 import functools
 import operator
 from time import time
-from helpers.profiling import profile, global_profiler as profiler
+from helpers.profiling import profile
 
 import numpy as np
 import torch
@@ -10,80 +10,6 @@ from torch.distributions import Bernoulli
 from dft_net import DFT_Net
 
 MAX_T = 5000
-
-
-@profile
-def train(dataset, opts):
-    best_model = None
-    best_error = 1e100
-    ε = 1e-4
-    it = 0
-    delta_w = 0
-    model = None
-    start = time()
-    no_progress_it = 0
-    for it in range(opts['niter']):
-        batch_loss, W_list = 0, []
-
-        for j in range(len(dataset['M'])):
-            if model is None:  # Initialize
-                model = initialize(dataset, opts, j)
-                print("Learning rate : {}".format(opts['lr']))
-            else:
-                update_fixed_parameters(dataset, model, opts, j)
-
-            per_class_samples = get_per_class_samples(dataset, j, model, opts)
-            predictions, W_list, avg_t, max_t = get_model_predictions(model, opts)
-
-            pairs, confusion_matrix = align_samples(per_class_samples, predictions)
-            batch_loss += compute_loss(opts, pairs, model)
-
-        error = batch_loss.detach().numpy() / opts['ntrain']
-        if error < best_error:
-            best_error = error
-            best_model = {
-                "M": model.M.data.numpy().copy().tolist(),
-                "φ1": float(model.φ1.data.numpy().copy()[0]),
-                "φ2": float(model.φ2.data.numpy().copy()[0]),
-                "w": model.w.copy().tolist(),
-                "error": best_error,
-                "iter": it + 1,
-            }
-            no_progress_it = 0
-
-        if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or error < ε:
-            print_progress(best_model, error, it, model, opts, start)
-            print([len(predictions[p]) / opts['ntrain'] for p in predictions])
-            start = time()
-
-        if error < ε:
-            break
-
-        profiler.start("calc_grad")
-        if opts['w']:
-            batch_loss.backward()
-            W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]).sum(axis=0) / len(W_list)
-            delta_w = opts['momentum'] * delta_w + opts['lr'] / len(dataset['M']) * W_grad
-            model.w -= delta_w.reshape(-1, 1)
-            model.w = model.w.clip(0.1, 0.9)
-            model.w /= model.w.sum()
-
-        if opts['m']:
-            opts['optimizer'].zero_grad()
-            batch_loss.backward()
-            opts['optimizer'].step()
-            clamp_parameters(model, opts)
-            model.update_S()
-
-        profiler.finish("calc_grad")
-
-        no_progress_it += 1
-
-        if no_progress_it > 200:
-            model = None
-            no_progress_it = 0
-
-    return best_model, it
 
 
 @profile
@@ -103,19 +29,20 @@ def get_per_class_samples(dataset, j, model, opts):
 
 
 @profile
-def print_progress(best_model, error, it, model, opts, start):
-    print("." * 70)
-    print("Iter {}/{}(time elapsed: {:0.3f}s)".format(it + 1, opts['niter'], time() - start))
-    print("current err: {:0.5f}".format(error))
-    print("best error: {:0.5f}".format(best_model["error"]))
+def print_progress(best_model, error, it, model, opts, time):
+    if it == 0:
+        print("." * 70)
+        print(f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'best err':10s} {'avg deliberation':15s}")
+    print(f"{it + 1:5d}/{opts['niter']:<10d} {time:<10.3f} {error:<10.3f} {best_model['error']:<10.3f} "
+          f"{best_model['avg_t']:<15.2f}")
+
+    #    if opts['m']:
+    #     print("current M: \n{}".format(model.M.detach().numpy()))
+    #     print("best M: \n{}".format(np.array(best_model["M"])))
+
     if opts['w']:
         print("current w: {}".format(model.w.T))
         print("best w: {}".format(best_model["w"]))
-
-
-#    if opts['m']:
-#     print("current M: \n{}".format(model.M.detach().numpy()))
-#     print("best M: \n{}".format(np.array(best_model["M"])))
 
 
 @profile
@@ -129,10 +56,9 @@ def compute_loss(opts, pairs, model):
 
     if opts['m']:  # L2 regularization
         large = model.M - torch.clamp(model.M, 0, 5)  # Discourage very big values
-        large = large ** 2
         # row_sum = model.M.sum(dim=1)
         # small = torch.clamp(row_sum, 0.1) - row_sum  # Discourage all zero rows
-        loss += 0.5 * large.sum()
+        loss += 0.005 * large.sum()
 
     return loss
 
@@ -259,7 +185,7 @@ def clamp_parameters(model, opts):
 
 @profile
 def get_hyper_params(model, opts):
-    loss_func = torch.nn.MultiMarginLoss(margin=1)
+    loss_func = torch.nn.MultiMarginLoss(margin=1e-1)
     learning_rate = 0.001 if opts['w'] else 0.05
     momentum = 0.5
     if opts['m']:
