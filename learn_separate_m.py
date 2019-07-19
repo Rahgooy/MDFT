@@ -17,7 +17,7 @@ Options:
     --i=STR                    input data set. [default: data/set4.json]
     --o=STR                    output path. [default: results/separate_m_learn_m.json]
     --m                        Learn M. [default: True]
-    --w                        Learn W. [default: True]
+    --w                        Learn W. [default: False]
     --s                        Learn S. [default: False]
 """
 import json

@@ -55,10 +55,10 @@ def compute_loss(opts, pairs, model):
         loss += opts['loss'](n, torch.tensor([target]))
 
     if opts['m']:  # L2 regularization
-        large = model.M - torch.clamp(model.M, 0, 5)  # Discourage very big values
+        large = model.M - torch.clamp(model.M, 0, 10)  # Discourage very big values
         # row_sum = model.M.sum(dim=1)
         # small = torch.clamp(row_sum, 0.1) - row_sum  # Discourage all zero rows
-        loss += 0.005 * large.sum()
+        loss += 0.001 * large.sum()
 
     return loss
 

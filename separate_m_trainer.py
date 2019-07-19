@@ -44,7 +44,7 @@ def train(dataset, opts):
 
         avg_t /= len(dataset['M'])
         error = loss.detach().numpy() / (opts['ntrain'] * len(dataset['M']))
-        if error < best_error:
+        if error <= best_error:
             best_error = error
             best_model = {
                 "M": model.M.data.numpy().copy().tolist(),
