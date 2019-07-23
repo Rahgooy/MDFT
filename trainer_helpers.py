@@ -32,9 +32,11 @@ def get_per_class_samples(dataset, j, model, opts):
 def print_progress(best_model, error, it, model, opts, time):
     if it == 0:
         print("." * 70)
-        print(f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'best err':10s} {'avg deliberation':15s}")
-    print(f"{it + 1:5d}/{opts['niter']:<10d} {time:<10.3f} {error:<10.3f} {best_model['error']:<10.3f} "
-          f"{best_model['avg_t']:<15.2f}")
+        print(
+            f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'best err':10s} {'avg delib':15s} {'predicted w0'}")
+    print(f"{it + 1:5d}/{opts['niter']:<10d} {time:<10.3f} {error:<10.3f} {best_model['error']:<10.4f} "
+          f"{best_model['avg_t']:<15.2f} "
+          f"{best_model['w'][0][0]:0.3f}")
 
     #    if opts['m']:
     #     print("current M: \n{}".format(model.M.detach().numpy()))
@@ -124,17 +126,18 @@ def update_fixed_parameters(data, model, opts, j):
 def initialize(data, opts, j):
     nn_opts = get_nn_options(data, opts, j)
     model = DFT_Net(nn_opts)
-    loss, lr, momentum, optimizer = get_hyper_params(model, opts)
+    loss, lr, decay, momentum, optimizer = get_hyper_params(model, opts)
     opts['lr'] = lr
     opts['loss'] = loss
     opts['momentum'] = momentum
     opts['optimizer'] = optimizer
+    opts['decay'] = decay
     return model
 
 
 @profile
 def reset_model(model, opts):
-    loss, lr, momentum, optimizer = get_hyper_params(model, opts)
+    loss, lr, _, momentum, optimizer = get_hyper_params(model, opts)
     opts['lr'] = lr
     opts['loss'] = loss
     opts['momentum'] = momentum
@@ -185,13 +188,14 @@ def clamp_parameters(model, opts):
 @profile
 def get_hyper_params(model, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e-2)
-    learning_rate = 0.005 if opts['w'] else 0.05
+    learning_rate = 0.001 if opts['w'] else 0.05
+    decay = 0.8
     momentum = 0.5
     if opts['m']:
-        optim = torch.optim.SGD([model.M], lr=learning_rate, momentum=momentum)
+        optim = torch.optim.SGD([model.M], lr=learning_rate, momentum=momentum, nesterov=True)
     else:
         optim = None  # torch.optim.RMSprop([model.M], lr=learning_rate)
-    return loss_func, learning_rate, momentum, optim
+    return loss_func, learning_rate, decay, momentum, optim
 
 
 @profile

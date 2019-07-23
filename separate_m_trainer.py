@@ -4,7 +4,8 @@ import numpy as np
 from numpy.random.mtrand import permutation
 
 from helpers.profiling import profile, global_profiler as profiler
-from trainer_helpers import initialize, update_fixed_parameters, get_per_class_samples, get_model_predictions, align_samples, \
+from trainer_helpers import initialize, update_fixed_parameters, get_per_class_samples, get_model_predictions, \
+    align_samples, \
     compute_loss, print_progress, clamp_parameters
 
 
@@ -18,6 +19,7 @@ def train(dataset, opts):
     model = None
     start = time()
     no_progress_it = 0
+    decay = None
     for it in range(opts['niter']):
         loss = 0
         avg_t = 0
@@ -27,6 +29,10 @@ def train(dataset, opts):
                 # print("Learning rate : {}".format(opts['lr']))
             else:
                 update_fixed_parameters(dataset, model, opts, j)
+            if decay is None:
+                decay = opts['decay']
+            else:
+                decay = decay ** (it // 10)
 
             per_class_samples = get_per_class_samples(dataset, j, model, opts)
             predictions, W_list, a_t, max_t = get_model_predictions(model, opts)
@@ -37,7 +43,7 @@ def train(dataset, opts):
             if opts['w']:
                 l.backward()
                 W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]).sum(axis=0) / len(W_list)
-                delta_w = opts['momentum'] * delta_w + opts['lr'] * W_grad
+                delta_w = opts['momentum'] * delta_w + opts['lr'] * decay * W_grad
                 model.w -= delta_w.reshape(-1, 1)
                 model.w = model.w.clip(0.1, 0.9)
                 model.w /= model.w.sum()
