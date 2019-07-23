@@ -1,11 +1,13 @@
 import functools
 import operator
-from time import time
+
+from dft import DFT, get_threshold_based_dft_dist
+from helpers.distances import hotaling_S
 from helpers.profiling import profile
 
 import numpy as np
 import torch
-from torch.distributions import Bernoulli
+from torch.distributions import Bernoulli, Uniform
 
 from dft_net import DFT_Net
 
@@ -13,11 +15,7 @@ MAX_T = 5000
 
 
 @profile
-def get_per_class_samples(dataset, j, model, opts):
-    dist = dataset['freq'][j]
-    n = opts['ntrain']
-    # freq = np.random.multinomial(n, dist)
-
+def get_per_class_samples(model, dist, n):
     freq = np.floor(np.array(dist) * n)
     while freq.sum() != n:
         d = freq / freq.sum()
@@ -29,53 +27,39 @@ def get_per_class_samples(dataset, j, model, opts):
 
 
 @profile
-def print_progress(best_model, error, it, model, opts, time):
+def print_progress(best_model, error, mse, it, opts, time_span):
     if it == 0:
-        print("." * 70)
-        print(
-            f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'best err':10s} {'avg delib':15s} {'predicted w0'}")
-    print(f"{it + 1:5d}/{opts['niter']:<10d} {time:<10.3f} {error:<10.3f} {best_model['error']:<10.4f} "
+        print("." * 90)
+        print(f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'curr mse':10s} {'best mse':10s} "
+              f"{'avg delib':15s} {'predicted w0'}")
+    print(f"{it + 1:5d}/{opts['niter']:<10d} {time_span:<10.3f} {error:<10.3f} {mse:<10.3f} {best_model['mse']:<10.4f} "
           f"{best_model['avg_t']:<15.2f} "
           f"{best_model['w'][0][0]:0.3f}")
 
-    #    if opts['m']:
-    #     print("current M: \n{}".format(model.M.detach().numpy()))
-    #     print("best M: \n{}".format(np.array(best_model["M"])))
-
-    # if opts['w']:
-    #     print("current w: {}".format(model.w.T))
-    #     print("best w: {}".format(best_model["w"]))
-
 
 @profile
-def compute_loss(opts, pairs, model):
+def compute_loss(pairs, nn_opts):
     loss = 0
 
     for i in range(len(pairs)):
         target, p = pairs[i]
         n = p.view(1, -1)
-        loss += opts['loss'](n, torch.tensor([target]))
-
-    if opts['m']:  # L2 regularization
-        large = model.M - torch.clamp(model.M, 0, 10)  # Discourage very big values
-        # row_sum = model.M.sum(dim=1)
-        # small = torch.clamp(row_sum, 0.1) - row_sum  # Discourage all zero rows
-        loss += 0.001 * large.sum()
+        loss += nn_opts['loss'](n, torch.tensor([target]))
 
     return loss
 
 
 @profile
-def get_model_predictions(model, opts):
+def get_model_predictions(model, learn_w, nsamples):
     W_list, converged, t, avg_t = [], None, 0, 0
     predictions = {x: [] for x in range(model.options_count)}
-    P = torch.Tensor(np.repeat(model.P0, opts['ntrain'], axis=1).tolist())
-    n = opts['ntrain']
+    P = torch.Tensor(np.repeat(model.P0, nsamples, axis=1).tolist())
+    n = nsamples
 
     while n > 0 and t < MAX_T:
         W = Bernoulli(probs=model.w[0][0]).sample([n])
         W = torch.stack([W, 1 - W])
-        W.requires_grad = opts['w']
+        W.requires_grad = learn_w
         W_list.append(W)
 
         P = model.forward(W, P)
@@ -106,33 +90,27 @@ def get_model_predictions(model, opts):
     # convert to list of preferences per class
     predictions = {c: [predictions[c][:, i] for i in range(predictions[c].shape[1])] for c in predictions}
 
-    return predictions, W_list, avg_t / opts['ntrain'], t
+    return predictions, W_list, avg_t / nsamples, t
 
 
 @profile
-def update_fixed_parameters(data, model, opts, j):
-    if not opts['w']:
-        model.w = np.array(data['w'])
-    if not opts['m']:
-        model.M = torch.tensor(data['M'][j], requires_grad=False, dtype=torch.float)
-    if not opts['s']:
-        model.b = torch.tensor([float(data['b'])], requires_grad=False)
-        model.φ1 = torch.tensor([float(data['φ1'])], requires_grad=False)
-        model.φ2 = torch.tensor([float(data['φ2'])], requires_grad=False)
-    model.update_S()
-
-
-@profile
-def initialize(data, opts, j):
-    nn_opts = get_nn_options(data, opts, j)
-    model = DFT_Net(nn_opts)
-    loss, lr, decay, momentum, optimizer = get_hyper_params(model, opts)
-    opts['lr'] = lr
-    opts['loss'] = loss
-    opts['momentum'] = momentum
-    opts['optimizer'] = optimizer
-    opts['decay'] = decay
+def get_nn_model(nn_opts, idx):
+    o = nn_opts.copy()
+    o['M'] = o['M'][idx]
+    model = DFT_Net(o)
     return model
+
+
+@profile
+def initi_nn_opts(opts, data):
+    nn_opts = get_nn_options(data, opts)
+    loss, lr, decay, momentum, optimizer = get_hyper_params(nn_opts, opts)
+    nn_opts['lr'] = lr
+    nn_opts['loss'] = loss
+    nn_opts['momentum'] = momentum
+    nn_opts['optimizer'] = optimizer
+    nn_opts['decay'] = decay
+    return nn_opts
 
 
 @profile
@@ -180,30 +158,32 @@ def align_samples(per_class_samples, preds):
 
 
 @profile
-def clamp_parameters(model, opts):
+def clamp_parameters(nn_opts, opts):
     if opts['m']:
-        model.M.data.clamp_(min=0)
+        nn_opts['M'].data.clamp_(min=0)
 
 
 @profile
-def get_hyper_params(model, opts):
-    loss_func = torch.nn.MultiMarginLoss(margin=1e-2)
-    learning_rate = 0.001 if opts['w'] else 0.05
+def get_hyper_params(nn_opts, opts):
+    loss_func = torch.nn.MultiMarginLoss(margin=1e0)
+    learning_rate = 0.001 if opts['w'] else 0.01
     decay = 0.8
     momentum = 0.5
     if opts['m']:
-        optim = torch.optim.SGD([model.M], lr=learning_rate, momentum=momentum, nesterov=True)
+        optim = torch.optim.Adam([nn_opts['M']], lr=learning_rate)
     else:
-        optim = None  # torch.optim.RMSprop([model.M], lr=learning_rate)
+        optim = None
     return loss_func, learning_rate, decay, momentum, optim
 
 
 @profile
-def get_nn_options(data, opts, j):
-    M = torch.tensor(data['M'][j], requires_grad=False)
-    o, a = M.shape[0], M.shape[1]
+def get_nn_options(data, opts):
+    M = torch.tensor(data['M'], requires_grad=False)
+    o, a = len(data['idx'][0]), M.shape[1]
     if opts['m']:
-        M = torch.rand((o, a), requires_grad=True)
+        u = Uniform(1, 10)
+        M = u.sample(M.shape)
+        M.requires_grad = True
         M.data.clamp_(min=0)
 
     if opts['w']:
@@ -223,8 +203,21 @@ def get_nn_options(data, opts, j):
         'M': M,
         'P0': np.zeros((o, 1)),
         'w': w,
-        'σ2': data['sigma2'],
+        'σ2': data['σ2'],
         'threshold': data['threshold']
     }
 
     return options
+
+
+@profile
+def get_model_dist(model, data, n):
+    freq_list = []
+    for idx in data['idx']:
+        M = np.array(model['M'])[idx]
+        S = hotaling_S(M, model['φ1'], model['φ2'], model['b'])
+        P0 = np.zeros((M.shape[0], 1))
+        m = DFT(M, S, np.array(model['w']), P0, np.array(model['σ2']))
+        f, converged = get_threshold_based_dft_dist(m, n, model["threshold"], data["relative"])
+        freq_list.append(f.squeeze().tolist())
+    return freq_list

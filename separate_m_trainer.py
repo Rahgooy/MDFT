@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random.mtrand import permutation
 
 from helpers.profiling import profile, global_profiler as profiler
-from trainer_helpers import initialize, update_fixed_parameters, get_per_class_samples, get_model_predictions, \
+from trainer_helpers import initi_nn_opts, get_nn_model, get_per_class_samples, get_model_predictions, \
     align_samples, \
     compute_loss, print_progress, clamp_parameters
 
@@ -25,20 +25,20 @@ def train(dataset, opts):
         avg_t = 0
         for j in permutation(len(dataset['M'])):
             if model is None:  # Initialize
-                model = initialize(dataset, opts, j)
+                model = initi_nn_opts(opts, dataset)
                 # print("Learning rate : {}".format(opts['lr']))
             else:
-                update_fixed_parameters(dataset, model, opts, j)
+                get_nn_model(dataset, model, opts, j)
             if decay is None:
                 decay = opts['decay']
             else:
                 decay = decay ** (it // 10)
 
-            per_class_samples = get_per_class_samples(dataset, j, model, opts)
+            per_class_samples = get_per_class_samples(model, dataset, j, opts)
             predictions, W_list, a_t, max_t = get_model_predictions(model, opts)
             avg_t += a_t
             pairs, confusion_matrix = align_samples(per_class_samples, predictions)
-            l = compute_loss(opts, pairs, model)
+            l = compute_loss(pairs, opts)
             loss += l
             if opts['w']:
                 l.backward()
@@ -67,7 +67,7 @@ def train(dataset, opts):
             no_progress_it = 0
 
         if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or error < ε:
-            print_progress(best_model, error, it, model, opts, time() - start)
+            print_progress(best_model, error, it, model, time() - start, )
             # print([len(predictions[p]) / opts['ntrain'] for p in predictions])
             start = time()
 
