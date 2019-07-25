@@ -14,10 +14,10 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 1]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/multi/set4.mat]
-    --o=STR                    output path. [default: results/multi/set4_m.json]
+    --i=STR                    input data set. [default: data/set4.mat]
+    --o=STR                    output path. [default: results/test]
     --m                        Learn M. [default: True]
-    --w                        Learn W. [default: False]
+    --w                        Learn W. [default: True]
     --s                        Learn S. [default: False]
 """
 import json
@@ -98,7 +98,7 @@ def main():
 
     global_profiler.print_profile()
 
-    outPath = Path(opts['o'])
+    outPath = Path(opts['o'] + ".json")
     outPath.parent.mkdir(exist_ok=True, parents=True)
     with outPath.open(mode='w') as f:
         results = {
@@ -108,6 +108,8 @@ def main():
             'ntest': opts['ntest'],
         }
         json.dump(results, f, sort_keys=True, indent=4)
+    outPath = Path(opts['o'] + ".mat")
+    mat4py.savemat(outPath, results)
 
 
 if __name__ == "__main__":

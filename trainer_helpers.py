@@ -104,12 +104,13 @@ def get_nn_model(nn_opts, idx):
 @profile
 def initi_nn_opts(opts, data):
     nn_opts = get_nn_options(data, opts)
-    loss, lr, decay, momentum, optimizer = get_hyper_params(nn_opts, opts)
-    nn_opts['lr'] = lr
+    loss, w_lr, m_lr, w_decay, momentum, optimizer = get_hyper_params(nn_opts, opts)
+    nn_opts['w_lr'] = w_lr
+    nn_opts['m_lr'] = m_lr
     nn_opts['loss'] = loss
     nn_opts['momentum'] = momentum
     nn_opts['optimizer'] = optimizer
-    nn_opts['decay'] = decay
+    nn_opts['w_decay'] = w_decay
     return nn_opts
 
 
@@ -166,14 +167,15 @@ def clamp_parameters(nn_opts, opts):
 @profile
 def get_hyper_params(nn_opts, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e0)
-    learning_rate = 0.001 if opts['w'] else 0.01
-    decay = 0.8
-    momentum = 0.5
+    w_lr = 0.001 if opts['m'] else 0.01
+    m_lr = 0.01
+    w_decay = 0.8
+    momentum = 0.1
     if opts['m']:
-        optim = torch.optim.Adam([nn_opts['M']], lr=learning_rate)
+        optim = torch.optim.Adam([nn_opts['M']], lr=m_lr)
     else:
         optim = None
-    return loss_func, learning_rate, decay, momentum, optim
+    return loss_func, w_lr, m_lr, w_decay, momentum, optim
 
 
 @profile

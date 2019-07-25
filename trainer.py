@@ -13,24 +13,24 @@ from trainer_helpers import initi_nn_opts, get_nn_model, get_per_class_samples, 
 def train(dataset, opts):
     best_model = None
     best_mse = 1e100
-    ε = 5e-3
+    ε = 1e-4
     it = 0
     delta_w = 0
+    print(f"w = {dataset['w']}")
     nn_opts = initi_nn_opts(opts, dataset)
     start = time()
-    decay = None
+    w_decay = None
     nc = len(dataset['idx'])  # number of option combinations
     ns = opts['ntrain']  # number of samples
     for it in range(opts['niter']):
         loss = 0
         avg_t = 0
-        avg_M = 0
         for j in permutation(nc):
             model = get_nn_model(nn_opts, dataset['idx'][j])
-            if decay is None:
-                decay = nn_opts['decay']
+            if w_decay is None:
+                w_decay = nn_opts['w_decay']
             else:
-                decay = decay ** (it // 10)
+                w_decay = nn_opts['w_decay'] ** (it // (opts['niter'] / 10))
 
             per_class_samples = get_per_class_samples(model, dataset['D'][j], ns)
             predictions, W_list, a_t, max_t = get_model_predictions(model, opts['w'], ns)
@@ -45,21 +45,21 @@ def train(dataset, opts):
                 l.backward()
                 nn_opts['optimizer'].step()
                 clamp_parameters(nn_opts, opts)
-                avg_M += nn_opts['M'].detach().numpy()
 
             if opts['w']:
-                l.backward()
-                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]).sum(axis=0) / len(W_list)
-                delta_w = nn_opts['momentum'] * delta_w + nn_opts['lr'] * decay * W_grad
-                model.w -= delta_w.reshape(-1, 1)
-                model.w = model.w.clip(0.1, 0.9)
-                model.w /= model.w.sum()
+                if not opts['m']:
+                    l.backward()
+                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list])\
+                             .sum(axis=0).reshape(-1, 1) / len(W_list)
+                delta_w = nn_opts['momentum'] * delta_w + nn_opts['w_lr'] * w_decay * W_grad
+                nn_opts['w'] -= delta_w
+                nn_opts['w'] = nn_opts['w'].clip(0.2, 0.8)
+                nn_opts['w'] /= nn_opts['w'].sum()
 
             profiler.finish("calc_grad")
 
         avg_t /= nc
         error = loss.detach().numpy() / (nc * ns)
-        avg_M /= nc
         mdl = {
             "M": nn_opts['M'].data.numpy().copy().tolist(),
             "φ1": float(nn_opts['φ1'].data.numpy().copy()[0]),
