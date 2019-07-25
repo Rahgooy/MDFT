@@ -25,7 +25,7 @@ class DFT_Net(nn.Module):
         d = dm @ self.H @ dm
         d = d * d
 
-        s = self.φ2 * torch.exp(-self.φ1 * d)
+        s = self.phi2 * torch.exp(-self.phi1 * d)
         if i == j:
             return 1 - s
         return -s
@@ -42,11 +42,11 @@ class DFT_Net(nn.Module):
             'options_count': 3,
             'attr_count': 2,
             'M': None,
-            'φ1': 1,
-            'φ2': 1,
+            'phi1': 1,
+            'phi2': 1,
             'P0': np.zeros((3, 1)),
             'w': np.ones((2, 1)) / 2,
-            'σ2': 1,
+            'sig2': 1,
             'threshold': 5
         }
         for key in options:
@@ -57,7 +57,7 @@ class DFT_Net(nn.Module):
 
     def forward(self, w, prev_p):
         CM = self.C @ self.M
-        E = self.σ2 * self.C @ torch.randn(self.options_count, prev_p.shape[1])
+        E = self.sig2 * self.C @ torch.randn(self.options_count, prev_p.shape[1])
         V = CM @ w
         SP = self.S @ prev_p
         return SP + V + E

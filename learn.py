@@ -14,8 +14,8 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 1]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/set4.mat]
-    --o=STR                    output path. [default: results/test]
+    --i=STR                    input data set. [default: data/set1.mat]
+    --o=STR                    output path. [default: results/Mw/set1]
     --m                        Learn M. [default: True]
     --w                        Learn W. [default: True]
     --s                        Learn S. [default: False]
@@ -23,8 +23,6 @@ Options:
 import json
 from time import time
 
-from dft import DFT, get_threshold_based_dft_dist
-from helpers.distances import hotaling_S
 from docpie import docpie
 import numpy as np
 from pprint import pprint
@@ -54,9 +52,6 @@ def load_data(opts):
     data = mat4py.loadmat(opts['i'])
     data = data['dataset']
     for d in data:
-        d['φ1'] = d['phi1']
-        d['φ2'] = d['phi2']
-        d['σ2'] = d['sig2']
         d['idx'] = (np.array(d['idx']) - 1).tolist()  # adjust indexes to start from 0
         d['relative'] = False
     return data
@@ -109,7 +104,7 @@ def main():
         }
         json.dump(results, f, sort_keys=True, indent=4)
     outPath = Path(opts['o'] + ".mat")
-    mat4py.savemat(outPath, results)
+    mat4py.savemat(str(outPath), results)
 
 
 if __name__ == "__main__":

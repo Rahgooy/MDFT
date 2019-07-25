@@ -16,8 +16,8 @@ def hotaling(o1, o2, b):
     return (o2 - o1) @ H @ (o2 - o1).T
 
 
-def hotaling_S_from_D(D, φ1, φ2):
-    return np.eye(D.shape[0]) - φ2 * np.exp(-φ1 * D ** 2)
+def hotaling_S_from_D(D, phi1, phi2):
+    return np.eye(D.shape[0]) - phi2 * np.exp(-phi1 * D ** 2)
 
 
 def hotaling_D(M, b):
@@ -28,6 +28,6 @@ def hotaling_D(M, b):
     return D
 
 
-def hotaling_S(M, φ1, φ2, b):
+def hotaling_S(M, phi1, phi2, b):
     D = hotaling_D(M, b)
-    return hotaling_S_from_D(D, φ1, φ2)
+    return hotaling_S_from_D(D, phi1, phi2)

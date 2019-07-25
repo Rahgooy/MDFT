@@ -194,10 +194,10 @@ def get_nn_options(data, opts):
     else:
         w = np.array(data['w'])
     options = {
-        'φ1': torch.tensor([0.01], requires_grad=True) if opts['s']
-        else torch.tensor([data['φ1']], requires_grad=False),
-        'φ2': torch.tensor([0.01], requires_grad=True) if opts['s']
-        else torch.tensor([data['φ2']], requires_grad=False),
+        'phi1': torch.tensor([0.01], requires_grad=True) if opts['s']
+        else torch.tensor([data['phi1']], requires_grad=False),
+        'phi2': torch.tensor([0.01], requires_grad=True) if opts['s']
+        else torch.tensor([data['phi2']], requires_grad=False),
         'b': torch.tensor([10.0], requires_grad=True) if opts['s']
         else torch.tensor([float(data['b'])], requires_grad=False),
         'options_count': o,
@@ -205,7 +205,7 @@ def get_nn_options(data, opts):
         'M': M,
         'P0': np.zeros((o, 1)),
         'w': w,
-        'σ2': data['σ2'],
+        'sig2': data['sig2'],
         'threshold': data['threshold']
     }
 
@@ -217,9 +217,9 @@ def get_model_dist(model, data, n):
     freq_list = []
     for idx in data['idx']:
         M = np.array(model['M'])[idx]
-        S = hotaling_S(M, model['φ1'], model['φ2'], model['b'])
+        S = hotaling_S(M, model['phi1'], model['phi2'], model['b'])
         P0 = np.zeros((M.shape[0], 1))
-        m = DFT(M, S, np.array(model['w']), P0, np.array(model['σ2']))
+        m = DFT(M, S, np.array(model['w']), P0, np.array(model['sig2']))
         f, converged = get_threshold_based_dft_dist(m, n, model["threshold"], data["relative"])
         freq_list.append(f.squeeze().tolist())
     return freq_list

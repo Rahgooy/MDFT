@@ -2,13 +2,13 @@ import numpy as np
 
 
 class DFT:
-    def __init__(self, M, S, w, P0, σ2=1):
+    def __init__(self, M, S, w, P0, sig2=1):
         self.M = M
         self.S = S
         self.w = w
         self.P0 = P0
         self.P = [P0]
-        self.σ2 = σ2
+        self.sig2 = sig2
         self.V = [np.zeros(P0.shape)]
         self.W = [np.zeros(w.shape)]
         self.t = 0
@@ -27,9 +27,9 @@ def get_threshold_based_dft_dist(model, samples, threshold, relative=True):
 
 
 def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
-    def forward(C, CM, W, S, P, σ2):
+    def forward(C, CM, W, S, P, sig2):
         V = CM @ W
-        E = σ2 * C @ np.random.randn(P.shape[0], P.shape[1])
+        E = sig2 * C @ np.random.randn(P.shape[0], P.shape[1])
         SP = S @ P
         return SP + V + E
 
@@ -55,7 +55,7 @@ def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
         while n > 0 and t < MAX_T:
             W = np.random.binomial(1, model.w[0], n)
             W = np.vstack((W, 1.0 - W))
-            P = forward(model.C, CM, W, model.S, P, model.σ2)
+            P = forward(model.C, CM, W, model.S, P, model.sig2)
             P_max = get_max_pref(P, relative)
 
             if converged is None:
@@ -75,7 +75,7 @@ def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
         for t in range(1, T + 1):
             W = np.random.binomial(1, model.w[0], samples)
             W = np.vstack((W, 1.0 - W))
-            P = forward(model.C, CM, W, model.S, P, model.σ2)
+            P = forward(model.C, CM, W, model.S, P, model.sig2)
 
     choice_indices = P.argmax(axis=0)
     dist = np.array(np.bincount(choice_indices, minlength=P.shape[0]), dtype=np.double) / samples

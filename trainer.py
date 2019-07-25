@@ -13,7 +13,7 @@ from trainer_helpers import initi_nn_opts, get_nn_model, get_per_class_samples, 
 def train(dataset, opts):
     best_model = None
     best_mse = 1e100
-    ε = 1e-4
+    eps = 1e-4
     it = 0
     delta_w = 0
     print(f"w = {dataset['w']}")
@@ -62,10 +62,10 @@ def train(dataset, opts):
         error = loss.detach().numpy() / (nc * ns)
         mdl = {
             "M": nn_opts['M'].data.numpy().copy().tolist(),
-            "φ1": float(nn_opts['φ1'].data.numpy().copy()[0]),
-            "φ2": float(nn_opts['φ2'].data.numpy().copy()[0]),
+            "phi1": float(nn_opts['phi1'].data.numpy().copy()[0]),
+            "phi2": float(nn_opts['phi2'].data.numpy().copy()[0]),
             "b": float(nn_opts['b'].data.numpy().copy()[0]),
-            "σ2": nn_opts['σ2'],
+            "sig2": nn_opts['sig2'],
             "threshold": nn_opts['threshold'],
             "w": nn_opts['w'].copy().tolist(),
             "iter": it + 1,
@@ -79,12 +79,12 @@ def train(dataset, opts):
             best_mse = mse
             best_model = mdl
 
-        if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or error < ε:
+        if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or error < eps:
             print_progress(best_model, error, mse, it, opts, time() - start)
             # print([len(predictions[p]) / opts['ntrain'] for p in predictions])
             start = time()
 
-        if mse < ε:
+        if mse < eps:
             break
 
     return best_model, it
