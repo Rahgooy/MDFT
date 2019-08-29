@@ -15,9 +15,9 @@ Options:
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
     --i=STR                    input data set. [default: data/set1.mat]
-    --o=STR                    output path. [default: results/Mw/set1]
+    --o=STR                    output path. [default: results/M/set1]
     --m                        Learn M. [default: True]
-    --w                        Learn W. [default: True]
+    --w                        Learn W. [default: False]
     --s                        Learn S. [default: False]
 """
 import json
@@ -64,14 +64,15 @@ def main():
     pprint(opts)
     np.set_printoptions(precision=4, suppress=True)
 
-    data = load_data(opts)
+    datasets = load_data(opts)
     results = []
-    for d in data:
+    for d in datasets:
         print("*" * 90)
+        start = time()
         best, it = train(d, opts)
+        best['time'] = time() - start
 
         freq_list = get_model_dist(best, d, opts['ntest'])
-
         mse = np.array(d['D']) - np.array(freq_list)
         mse = (mse * mse).sum() / len(freq_list)
 
