@@ -14,10 +14,10 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 1]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/set1.mat]
-    --o=STR                    output path. [default: results/M/set1]
+    --i=STR                    input data set. [default: data/set5.mat]
+    --o=STR                    output path. [default: results/Mw/set5]
     --m                        Learn M. [default: True]
-    --w                        Learn W. [default: False]
+    --w                        Learn W. [default: True]
     --s                        Learn S. [default: False]
 """
 import json
@@ -78,7 +78,7 @@ def main():
 
         best['freq'] = freq_list
         best['mse'] = mse
-        best['actual-freq'] = d['D']
+        best['actual_freq'] = d['D']
 
         print("pred freq:")
         print(np.array(freq_list))

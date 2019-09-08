@@ -20,6 +20,8 @@ def dft_jsd(model1, model2, samples, T):
 
 def jsd(dist1, dist2):
     """Jensen-Shanon Divergence"""
+    dist1 = np.array(dist1)
+    dist2 = np.array(dist2)
     M = (dist1 + dist2) / 2
     jsd = (stats.entropy(dist1, M) + stats.entropy(dist2, M)) / 2
 
@@ -34,3 +36,19 @@ def kendalltau_dist(a, b):
             tau += 1
     total = n_candidates * (n_candidates - 1) / 2
     return tau / total
+
+
+def mean_confidence_interval(data, confidence=0.95):
+    a = np.array(data, dtype=np.float)
+    n = len(a)
+    m, se = np.mean(a), stats.sem(a)
+    x, y = stats.t.interval(confidence, n - 1, loc=m, scale=se)
+    return m, se, m - x
+
+
+def get_attr_index(m, m_):
+    kt1 = min(kendalltau_dist(m[:, 0], m_[:, 0]), kendalltau_dist(m[:, 1], m_[:, 1]))
+    kt2 = min(kendalltau_dist(m[:, 0], m_[:, 1]), kendalltau_dist(m[:, 1], m_[:, 0]))
+    if kt1 <= kt2:
+        return [0, 1]
+    return [1, 0]
