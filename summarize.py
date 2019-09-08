@@ -58,34 +58,23 @@ for dir in baseDir.iterdir():
                 }
 
 np.set_printoptions(precision=4, suppress=False, linewidth=200)
-
+line_len = 104
 for p in summary:
-    print("*" * 90)
-    print(p)
+    print(" " + "=" * line_len)
+    print(f"|{'learn ' + p:^103s} |")
+    print(" " + "-" * line_len)
+    print(f"| {'Set':10s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
+          f"{'time':^14s}  |")
+    print(f"| {'':10s}|{'mean':^7s} {'std':^7s} |  {'mean':^7s} {'std':^7} |  {'mean':^7s} {'std':^7} |  "
+          f"{'mean':^7s} {'std':^7} |  {'mean':^7s} {'std':^7} |")
+    print(" " + "-" * line_len)
     for s in sorted(summary[p].keys()):
-        print(s)
-        # print('mse')
-        # print(summary[p][s]['mse'])
-        # print(f"mean: {summary[p][s]['mse'].mean():0.5f}")
-        # print(f"std: {summary[p][s]['mse'].std():0.5f}")
-
-        print('jsd')
-        # print(summary[p][s]['jsd'])
-        print(f"mean: {summary[p][s]['jsd'].mean():0.6f}")
-        print(f"std: {summary[p][s]['jsd'].std():0.6f}")
-
-        print('w_jsd')
-        # print(summary[p][s]['jsd'])
-        print(f"mean: {summary[p][s]['w_jsd'].mean():0.6f}")
-        print(f"std: {summary[p][s]['w_jsd'].std():0.6f}")
-
-        print('kt')
         kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
-        # print(kt)
-        print(f"mean: {kt.mean():0.5f}")
-        print(f"std: {kt.std():0.5f}")
-
-        print('time')
-        # print(summary[p][s]['time'])
-        print(f"mean: {summary[p][s]['time'].mean():0.2f}s")
-        print("\n\n")
+        print(f"| {s:10s}|{summary[p][s]['mse'].mean():<0.5f} {summary[p][s]['mse'].std():>0.5f} |  "
+              f"{summary[p][s]['jsd'].mean():<0.5f} {summary[p][s]['jsd'].std():<0.5f} |  "
+              f"{summary[p][s]['w_jsd'].mean():<0.5f} {summary[p][s]['w_jsd'].std():<0.5f} |  "
+              f"{kt.mean():<0.5f} {kt.std():<0.5f} |  "
+              f"{summary[p][s]['time'].mean():^7.2f} {summary[p][s]['time'].std():^7.2f} |"
+              )
+    print(" " + "-" * line_len)
+    print("\n")
