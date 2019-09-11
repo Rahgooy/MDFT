@@ -46,9 +46,17 @@ def mean_confidence_interval(data, confidence=0.95):
     return m, se, m - x
 
 
-def get_attr_index(m, m_):
-    kt1 = min(kendalltau_dist(m[:, 0], m_[:, 0]), kendalltau_dist(m[:, 1], m_[:, 1]))
-    kt2 = min(kendalltau_dist(m[:, 0], m_[:, 1]), kendalltau_dist(m[:, 1], m_[:, 0]))
-    if kt1 <= kt2:
-        return [0, 1]
+def get_attr_index(m, m_, w, w_):
+    if w[0] == w[1]:  # Attributes are not distinguishable
+        kt1 = min(kendalltau_dist(m[:, 0], m_[:, 0]), kendalltau_dist(m[:, 1], m_[:, 1]))
+        kt2 = min(kendalltau_dist(m[:, 0], m_[:, 1]), kendalltau_dist(m[:, 1], m_[:, 0]))
+        if kt1 <= kt2:
+            return [0, 1]
+    else:  # Align based on attentions
+        if w[0] > w[1] and w_[0] > w_[1]:
+            return [0, 1]
+
+        if w[0] < w[1] and w_[0] < w_[1]:
+            return [0, 1]
+
     return [1, 0]

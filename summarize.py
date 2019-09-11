@@ -21,7 +21,9 @@ def set_evaluations(results):
         r = results['results'][i]
         M = np.array(d['M'])
         M_ = np.array(r['M'])
-        idx = get_attr_index(M, M_)
+        w = np.array(d['w'])
+        w_ = np.array(r['w'])
+        idx = get_attr_index(M, M_, w, w_)
         re_order = idx[0]
 
         r['kt1'] = kendalltau_dist(M[:, 0], M_[:, idx[0]])
@@ -58,19 +60,19 @@ for dir in baseDir.iterdir():
                 }
 
 np.set_printoptions(precision=4, suppress=False, linewidth=200)
-line_len = 104
+line_len = 124
 for p in summary:
     print(" " + "=" * line_len)
-    print(f"|{'learn ' + p:^103s} |")
+    print(f"|{'learn ' + p:^123s} |")
     print(" " + "-" * line_len)
-    print(f"| {'Set':10s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
+    print(f"| {'Set':30s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
           f"{'time':^14s}  |")
-    print(f"| {'':10s}|{'mean':^7s} {'std':^7s} |  {'mean':^7s} {'std':^7} |  {'mean':^7s} {'std':^7} |  "
+    print(f"| {'':30s}|{'mean':^7s} {'std':^7s} |  {'mean':^7s} {'std':^7} |  {'mean':^7s} {'std':^7} |  "
           f"{'mean':^7s} {'std':^7} |  {'mean':^7s} {'std':^7} |")
     print(" " + "-" * line_len)
     for s in sorted(summary[p].keys()):
         kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
-        print(f"| {s:10s}|{summary[p][s]['mse'].mean():<0.5f} {summary[p][s]['mse'].std():>0.5f} |  "
+        print(f"| {s:30s}|{summary[p][s]['mse'].mean():<0.5f} {summary[p][s]['mse'].std():>0.5f} |  "
               f"{summary[p][s]['jsd'].mean():<0.5f} {summary[p][s]['jsd'].std():<0.5f} |  "
               f"{summary[p][s]['w_jsd'].mean():<0.5f} {summary[p][s]['w_jsd'].std():<0.5f} |  "
               f"{kt.mean():<0.5f} {kt.std():<0.5f} |  "

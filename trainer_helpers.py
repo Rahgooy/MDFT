@@ -93,9 +93,18 @@ def get_model_predictions(model, learn_w, nsamples):
     return predictions, W_list, avg_t / nsamples, t
 
 
+def normalize_m(M):
+    M[:, 0] = M[:, 0] / M[:, 0].sum()
+    M[:, 1] = M[:, 1] / M[:, 1].sum()
+    return M
+
+
 @profile
 def get_nn_model(nn_opts, idx):
     o = nn_opts.copy()
+    o['M'] = torch.zeros(o['M'].shape, requires_grad=False)
+    o['M'][:, 0] = nn_opts['M'][:, 0] / nn_opts['M'][:, 0].sum()
+    o['M'][:, 1] = nn_opts['M'][:, 1] / nn_opts['M'][:, 1].sum()
     o['M'] = o['M'][idx]
     model = DFT_Net(o)
     return model

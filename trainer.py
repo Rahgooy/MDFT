@@ -1,16 +1,16 @@
 from time import time
 
 import numpy as np
+import torch
 from numpy.random.mtrand import permutation
 
-from helpers.profiling import profile, global_profiler as profiler
-from trainer_helpers import initi_nn_opts, get_nn_model, get_per_class_samples, get_model_predictions, \
-    align_samples, \
-    compute_loss, print_progress, clamp_parameters, get_model_dist
+from helpers.profiling import global_profiler as profiler
+from trainer_helpers import *
 
 
 @profile
 def train(dataset, opts):
+    torch.autograd.set_detect_anomaly(True)
     best_model = None
     best_mse = 1e100
     eps = 1e-4
@@ -49,11 +49,11 @@ def train(dataset, opts):
             if opts['w']:
                 if not opts['m']:
                     l.backward()
-                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list])\
+                W_grad = np.array([x.grad.detach().numpy().sum(axis=1) for x in W_list]) \
                              .sum(axis=0).reshape(-1, 1) / len(W_list)
                 delta_w = nn_opts['momentum'] * delta_w + nn_opts['w_lr'] * w_decay * W_grad
                 nn_opts['w'] -= delta_w
-                nn_opts['w'] = nn_opts['w'].clip(0.2, 0.8)
+                nn_opts['w'] = nn_opts['w'].clip(0.1, 0.9)
                 nn_opts['w'] /= nn_opts['w'].sum()
 
             profiler.finish("calc_grad")
@@ -61,7 +61,7 @@ def train(dataset, opts):
         avg_t /= nc
         error = loss.detach().numpy() / (nc * ns)
         mdl = {
-            "M": nn_opts['M'].data.numpy().copy().tolist(),
+            "M": normalize_m(nn_opts['M'].data.numpy().copy()).tolist(),
             "phi1": float(nn_opts['phi1'].data.numpy().copy()[0]),
             "phi2": float(nn_opts['phi2'].data.numpy().copy()[0]),
             "b": float(nn_opts['b'].data.numpy().copy()[0]),
@@ -81,7 +81,6 @@ def train(dataset, opts):
 
         if it % opts['nprint'] == 0 or it == opts['niter'] - 1 or error < eps:
             print_progress(best_model, error, mse, it, opts, time() - start)
-            # print([len(predictions[p]) / opts['ntrain'] for p in predictions])
             start = time()
 
         if mse < eps:
