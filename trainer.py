@@ -61,7 +61,8 @@ def train(dataset, opts):
         avg_t /= nc
         error = loss.detach().numpy() / (nc * ns)
         mdl = {
-            "M": normalize_m(nn_opts['M'].data.numpy().copy()).tolist(),
+            "M": get_M(nn_opts),
+            "M_params": [f'{p.data.numpy().copy().squeeze().tolist():0.2f}' for p in nn_opts['M_params']],
             "phi1": float(nn_opts['phi1'].data.numpy().copy()[0]),
             "phi2": float(nn_opts['phi2'].data.numpy().copy()[0]),
             "b": float(nn_opts['b'].data.numpy().copy()[0]),
@@ -87,3 +88,14 @@ def train(dataset, opts):
             break
 
     return best_model, it
+
+
+def get_M(nn_opts):
+    M = nn_opts['M'].data.numpy().copy()
+    if nn_opts['parametric_m']:
+        M[:, 0] = get_parametric_attr_values(nn_opts, 0).data.numpy()
+        M[:, 1] = get_parametric_attr_values(nn_opts, 1).data.numpy()
+
+    if nn_opts['normalize']:
+        M = normalize_m(M)
+    return M.tolist()

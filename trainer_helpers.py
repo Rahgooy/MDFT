@@ -31,10 +31,9 @@ def print_progress(best_model, error, mse, it, opts, time_span):
     if it == 0:
         print("." * 90)
         print(f"{'Iteration':16s} {'time':10s} {'curr err':<10s} {'curr mse':10s} {'best mse':10s} "
-              f"{'avg delib':15s} {'predicted w0'}")
+              f"{'avg delib':10s} {'predicted w0':15s} {'M params':20s}")
     print(f"{it + 1:5d}/{opts['niter']:<10d} {time_span:<10.3f} {error:<10.3f} {mse:<10.3f} {best_model['mse']:<10.4f} "
-          f"{best_model['avg_t']:<15.2f} "
-          f"{best_model['w'][0][0]:0.3f}")
+          f"{best_model['avg_t']:<10.2f} {best_model['w'][0][0]:<15.3f} {best_model['M_params']}")
 
 
 @profile
@@ -103,8 +102,15 @@ def normalize_m(M):
 def get_nn_model(nn_opts, idx):
     o = nn_opts.copy()
     o['M'] = torch.zeros(o['M'].shape, requires_grad=False)
-    o['M'][:, 0] = nn_opts['M'][:, 0] / nn_opts['M'][:, 0].sum()
-    o['M'][:, 1] = nn_opts['M'][:, 1] / nn_opts['M'][:, 1].sum()
+
+    if o['parametric_m']:
+        o['M'][:, 0] = get_parametric_attr_values(nn_opts, 0)
+        o['M'][:, 1] = get_parametric_attr_values(nn_opts, 1)
+    else:
+        if o['normalize']:
+            o['M'][:, 0] = nn_opts['M'][:, 0] / nn_opts['M'][:, 0].sum()
+            o['M'][:, 1] = nn_opts['M'][:, 1] / nn_opts['M'][:, 1].sum()
+
     o['M'] = o['M'][idx]
     model = DFT_Net(o)
     return model
@@ -170,18 +176,23 @@ def align_samples(per_class_samples, preds):
 @profile
 def clamp_parameters(nn_opts, opts):
     if opts['m']:
-        nn_opts['M'].data.clamp_(min=0)
+        # nn_opts['M'].data.clamp_(min=0)
+        pass
 
 
 @profile
 def get_hyper_params(nn_opts, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e0)
-    w_lr = 0.001 if opts['m'] else 0.01
+    w_lr = 0.05 if opts['m'] else 0.01
     m_lr = 0.01
-    w_decay = 0.8
+    w_decay = 0.9
     momentum = 0.1
     if opts['m']:
-        optim = torch.optim.Adam([nn_opts['M']], lr=m_lr)
+        if nn_opts['parametric_m']:
+            m_lr = 0.1
+            optim = torch.optim.Adam(nn_opts['M_params'], lr=m_lr)
+        else:
+            optim = torch.optim.Adam([nn_opts['M']], lr=m_lr)
     else:
         optim = None
     return loss_func, w_lr, m_lr, w_decay, momentum, optim
@@ -189,13 +200,22 @@ def get_hyper_params(nn_opts, opts):
 
 @profile
 def get_nn_options(data, opts):
+    no_m_func = 'attr1_func' not in data or data['attr1_func'] == 0
     M = torch.tensor(data['M'], requires_grad=False)
     o, a = len(data['idx'][0]), M.shape[1]
-    if opts['m']:
-        u = Uniform(1, 10)
-        M = u.sample(M.shape)
-        M.requires_grad = True
-        M.data.clamp_(min=0)
+    m_params = []
+    if no_m_func:
+        if opts['m']:
+            u = Uniform(1, 10)
+            M = u.sample(M.shape)
+            M.requires_grad = True
+            M.data.clamp_(min=0)
+    else:
+        if opts['m']:
+            m_params += get_attribute_params(data, opts, 0)
+            m_params += get_attribute_params(data, opts, 1)
+        else:
+            m_params = torch.tensor([data[f'attr1_func_params'][0], data[f'attr2_func_params'][0]], requires_grad=False)
 
     if opts['w']:
         w = np.ones((a, 1))
@@ -212,6 +232,11 @@ def get_nn_options(data, opts):
         'options_count': o,
         'attr_count': a,
         'M': M,
+        'M_params': m_params,
+        'normalize': data['normalize'] == 1,
+        'attr1_func': 0 if no_m_func else data['attr1_func'],
+        'attr2_func': 0 if no_m_func else data['attr2_func'],
+        'parametric_m': not no_m_func,
         'P0': np.zeros((o, 1)),
         'w': w,
         'sig2': data['sig2'],
@@ -219,6 +244,39 @@ def get_nn_options(data, opts):
     }
 
     return options
+
+
+def get_parametric_attr_values(nn_opts, attr):
+    if nn_opts['normalize']:
+        if nn_opts[f'attr{attr + 1}_func'] == 1:
+            alpha = nn_opts['M_params'][attr]
+            return torch.exp(nn_opts['M'][:, attr] * alpha) / torch.exp(nn_opts['M'][:, attr] * alpha).sum()
+        if nn_opts[f'attr{attr + 1}_func'] == 2:
+            alpha = nn_opts['M_params'][attr]
+            return torch.sigmoid(alpha * nn_opts['M'][:, attr]) / torch.sigmoid(alpha * nn_opts['M'][:, attr]).sum()
+    else:
+        if nn_opts[f'attr{attr + 1}_func'] == 1:
+            alpha = nn_opts['M_params'][attr]
+            return torch.exp(nn_opts['M'][:, attr] * alpha)
+        if nn_opts[f'attr{attr + 1}_func'] == 2:
+            alpha = nn_opts['M_params'][attr]
+            return torch.sigmoid(alpha * nn_opts['M'][:, attr])
+    return None
+
+
+def get_attribute_params(data, opts, attr):
+    if not opts['m']:
+        alpha = torch.tensor(data[f'attr{attr + 1}_func_params'], requires_grad=False)
+        return [alpha]
+
+    if data[f'attr{attr + 1}_func'] == 1:
+        alpha = torch.tensor([0.0])  # Uniform(-5, 5).sample()
+        alpha.requires_grad = True
+    elif data[f'attr{attr + 1}_func'] == 2:
+        alpha = torch.tensor([0.0])  # Uniform(-5, 5).sample()
+        alpha.requires_grad = True
+
+    return [alpha]
 
 
 @profile
