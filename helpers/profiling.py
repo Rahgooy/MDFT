@@ -1,4 +1,4 @@
-import time
+from time import time
 import sys
 
 
@@ -15,11 +15,11 @@ class Profiler:
                 'total': 0,
                 'calls': 0
             }
-        self.profile[fname]['current'] = time.clock()
+        self.profile[fname]['current'] = time()
         self.profile[fname]['calls'] += 1
 
     def finish(self, fname):
-        self.profile[fname]['total'] += time.clock() - self.profile[fname]['current']
+        self.profile[fname]['total'] += time() - self.profile[fname]['current']
 
     def print_profile(self):
         self.out.write("=" * 85 + "\n")

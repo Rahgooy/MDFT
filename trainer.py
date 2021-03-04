@@ -35,6 +35,8 @@ def train(dataset, opts):
             per_class_samples = get_per_class_samples(model, dataset['D'][j], ns)
             predictions, W_list, a_t, max_t = get_model_predictions(model, opts['w'], ns)
             avg_t += a_t
+
+            
             pairs, confusion_matrix = align_samples(per_class_samples, predictions)
             l = compute_loss(pairs, nn_opts)
             loss += l
