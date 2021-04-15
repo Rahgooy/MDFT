@@ -22,7 +22,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Rahgooy/MDFT",
     python_requires=">=3.7",
-    packages=find_packages(),
+    packages=['mdft', 'mdft_nn'],
     license="",
     install_requires=install_requires,
     extras_require={
