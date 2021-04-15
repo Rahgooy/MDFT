@@ -51,7 +51,6 @@ def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
         n = samples
         converged = None
         t = 1
-        average_t = 0
         while n > 0 and t < MAX_T:
             W = np.random.binomial(1, model.w[0], n)
             W = np.vstack((W, 1.0 - W))
@@ -64,13 +63,11 @@ def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
                 converged = np.hstack((converged, P[:, P_max >= threshold]))
 
             P = P[:, P_max < threshold]
-            average_t += n
             n = P.shape[1]
             t += 1
 
         has_converged = n == 0
         P = converged
-        average_t /= samples
     else:
         for t in range(1, T + 1):
             W = np.random.binomial(1, model.w[0], samples)
