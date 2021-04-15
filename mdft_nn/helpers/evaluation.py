@@ -1,5 +1,5 @@
 import numpy as np
-from mdft import get_fixed_T_dft_dist
+from mdft_nn.mdft import get_fixed_T_dft_dist
 from scipy import stats
 from itertools import combinations, permutations
 

@@ -1,9 +1,9 @@
 import functools
 import operator
 
-from mdft import MDFT, get_threshold_based_dft_dist
-from helpers.distances import hotaling_S
-from helpers.profiling import profile
+from mdft_nn.mdft import MDFT, get_threshold_based_dft_dist
+from mdft_nn.helpers.distances import hotaling_S
+from mdft_nn.helpers.profiling import profile
 
 import numpy as np
 import torch

@@ -27,7 +27,7 @@ from docpie import docpie
 import numpy as np
 from pprint import pprint
 from pathlib import Path
-from helpers.profiling import global_profiler
+from mdft_nn.helpers.profiling import global_profiler
 from mdft_nn.trainer import train
 import mat4py
 
