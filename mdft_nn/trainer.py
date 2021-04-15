@@ -5,7 +5,7 @@ import torch
 from numpy.random.mtrand import permutation
 
 from helpers.profiling import global_profiler as profiler
-from trainer_helpers import *
+from mdft_nn.trainer_helpers import *
 
 
 @profile

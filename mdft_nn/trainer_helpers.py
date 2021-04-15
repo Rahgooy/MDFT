@@ -1,7 +1,7 @@
 import functools
 import operator
 
-from dft import DFT, get_threshold_based_dft_dist
+from mdft import MDFT, get_threshold_based_dft_dist
 from helpers.distances import hotaling_S
 from helpers.profiling import profile
 
@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.distributions import Bernoulli, Uniform
 
-from dft_net import DFT_Net
+from mdft_nn.dft_net import DFT_Net
 
 MAX_T = 5000
 
@@ -87,7 +87,8 @@ def get_model_predictions(model, learn_w, nsamples):
         predictions[i] = converged[:, np.argwhere(mx == i).squeeze(dim=0)]
 
     # convert to list of preferences per class
-    predictions = {c: [predictions[c][:, i] for i in range(predictions[c].shape[1])] for c in predictions}
+    predictions = {c: [predictions[c][:, i]
+                       for i in range(predictions[c].shape[1])] for c in predictions}
 
     return predictions, W_list, avg_t / nsamples, t
 
@@ -119,7 +120,8 @@ def get_nn_model(nn_opts, idx):
 @profile
 def initi_nn_opts(opts, data):
     nn_opts = get_nn_options(data, opts)
-    loss, w_lr, m_lr, w_decay, momentum, optimizer = get_hyper_params(nn_opts, opts)
+    loss, w_lr, m_lr, w_decay, momentum, optimizer = get_hyper_params(
+        nn_opts, opts)
     nn_opts['w_lr'] = w_lr
     nn_opts['m_lr'] = m_lr
     nn_opts['loss'] = loss
@@ -215,7 +217,8 @@ def get_nn_options(data, opts):
             m_params += get_attribute_params(data, opts, 0)
             m_params += get_attribute_params(data, opts, 1)
         else:
-            m_params = torch.tensor([data[f'attr1_func_params'][0], data[f'attr2_func_params'][0]], requires_grad=False)
+            m_params = torch.tensor(
+                [data[f'attr1_func_params'][0], data[f'attr2_func_params'][0]], requires_grad=False)
 
     if opts['w']:
         w = np.ones((a, 1))
@@ -266,13 +269,11 @@ def get_parametric_attr_values(nn_opts, attr):
 
 def get_attribute_params(data, opts, attr):
     if not opts['m']:
-        alpha = torch.tensor(data[f'attr{attr + 1}_func_params'], requires_grad=False)
+        alpha = torch.tensor(
+            data[f'attr{attr + 1}_func_params'], requires_grad=False)
         return [alpha]
 
-    if data[f'attr{attr + 1}_func'] == 1:
-        alpha = torch.tensor([0.0])  # Uniform(-5, 5).sample()
-        alpha.requires_grad = True
-    elif data[f'attr{attr + 1}_func'] == 2:
+    if data[f'attr{attr + 1}_func'] == 1 or data[f'attr{attr + 1}_func'] == 2:
         alpha = torch.tensor([0.0])  # Uniform(-5, 5).sample()
         alpha.requires_grad = True
 
@@ -286,7 +287,8 @@ def get_model_dist(model, data, n):
         M = np.array(model['M'])[idx]
         S = hotaling_S(M, model['phi1'], model['phi2'], model['b'])
         P0 = np.zeros((M.shape[0], 1))
-        m = DFT(M, S, np.array(model['w']), P0, np.array(model['sig2']))
-        f, converged = get_threshold_based_dft_dist(m, n, model["threshold"], data["relative"])
+        m = MDFT(M, S, np.array(model['w']), P0, np.array(model['sig2']))
+        f, _ = get_threshold_based_dft_dist(
+            m, n, model["threshold"], data["relative"])
         freq_list.append(f.squeeze().tolist())
     return freq_list

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class DFT:
+class MDFT:
     def __init__(self, M, S, w, P0, sig2=1):
         self.M = M
         self.S = S

@@ -28,10 +28,10 @@ import numpy as np
 from pprint import pprint
 from pathlib import Path
 from helpers.profiling import global_profiler
-from trainer import train
+from mdft_nn.trainer import train
 import mat4py
 
-from trainer_helpers import get_model_dist
+from mdft_nn.trainer_helpers import get_model_dist
 
 
 def get_options():
@@ -69,7 +69,7 @@ def main():
     for d in datasets:
         print("*" * 90)
         start = time()
-        best, it = train(d, opts)
+        best, _ = train(d, opts)
         best['time'] = time() - start
 
         freq_list = get_model_dist(best, d, opts['ntest'])
@@ -94,9 +94,9 @@ def main():
 
     global_profiler.print_profile()
 
-    outPath = Path(opts['o'] + ".json")
-    outPath.parent.mkdir(exist_ok=True, parents=True)
-    with outPath.open(mode='w') as f:
+    out_path = Path(opts['o'] + ".json")
+    out_path.parent.mkdir(exist_ok=True, parents=True)
+    with out_path.open(mode='w') as f:
         results = {
             'nsamples': opts['ntrain'],
             'dataset': Path(opts['i']).name,
@@ -104,8 +104,8 @@ def main():
             'ntest': opts['ntest'],
         }
         json.dump(results, f, sort_keys=True, indent=4)
-    outPath = Path(opts['o'] + ".mat")
-    mat4py.savemat(str(outPath), results)
+    out_path = Path(opts['o'] + ".mat")
+    mat4py.savemat(str(out_path), results)
 
 
 if __name__ == "__main__":
