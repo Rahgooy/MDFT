@@ -18,7 +18,7 @@ class MDFT:
 
 
 def get_fixed_T_dft_dist(model, samples, T):
-    dist, _, _ = __get_dft_dist(model, samples, False, T, 0)
+    dist, _ = __get_dft_dist(model, samples, False, T, 0)
     return dist
 
 
