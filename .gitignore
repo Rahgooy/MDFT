@@ -2,6 +2,5 @@
 .idea/*
 .cache/*
 \.DS_Store
-data/*
 matlab/codegen/*
 *.pyc
