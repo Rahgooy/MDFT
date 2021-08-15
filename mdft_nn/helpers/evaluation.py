@@ -1,19 +1,19 @@
 import numpy as np
-from dft import get_fixed_T_dft_dist
+from mdft_nn.mdft import get_time_based_dft_dist
 from scipy import stats
-from itertools import combinations, permutations
+from itertools import combinations
 
 
 def dft_kl(model1, model2, samples, T):
-    dist1 = get_fixed_T_dft_dist(model1, samples, T)
-    dist2 = get_fixed_T_dft_dist(model2, samples, T)
+    dist1 = get_time_based_dft_dist(model1, samples, T)
+    dist2 = get_time_based_dft_dist(model2, samples, T)
 
     return stats.entropy(dist1, dist2), dist1.T, dist2.T
 
 
 def dft_jsd(model1, model2, samples, T):
-    dist1 = get_fixed_T_dft_dist(model1, samples, T)
-    dist2 = get_fixed_T_dft_dist(model2, samples, T)
+    dist1 = get_time_based_dft_dist(model1, samples, T)
+    dist2 = get_time_based_dft_dist(model2, samples, T)
 
     return jsd(dist1, dist2), dist1.T, dist2.T
 
@@ -50,8 +50,10 @@ def mean_confidence_interval(data, confidence=0.95):
 
 
 def get_attr_index(m, m_):
-    kt1 = min(kendalltau_dist(m[:, 0], m_[:, 0]), kendalltau_dist(m[:, 1], m_[:, 1]))
-    kt2 = min(kendalltau_dist(m[:, 0], m_[:, 1]), kendalltau_dist(m[:, 1], m_[:, 0]))
+    kt1 = min(kendalltau_dist(m[:, 0], m_[:, 0]),
+              kendalltau_dist(m[:, 1], m_[:, 1]))
+    kt2 = min(kendalltau_dist(m[:, 0], m_[:, 1]),
+              kendalltau_dist(m[:, 1], m_[:, 0]))
     if kt1 <= kt2:
         return [0, 1]
     return [1, 0]

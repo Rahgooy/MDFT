@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class DFT:
+class MDFT:
     def __init__(self, M, S, w, P0, sig2=1):
         self.M = M
         self.S = S
@@ -17,62 +17,50 @@ class DFT:
             self.C[i][i] = 1
 
 
-def get_fixed_T_dft_dist(model, samples, T):
-    dist, _, _ = __get_dft_dist(model, samples, False, T, 0)
+def get_time_based_dft_dist(model, samples, time_threshold):
+    dist, _, _ = __get_dft_dist(model, samples, False, time_threshold, 0)
     return dist
 
 
-def get_threshold_based_dft_dist(model, samples, threshold, relative=True):
-    return __get_dft_dist(model, samples, True, 0, threshold, relative)
+def get_preference_based_dft_dist(model, samples, pref_threshold):
+    return __get_dft_dist(model, samples, True, 0, pref_threshold)
 
 
-def __get_dft_dist(model, samples, tb, T, threshold, relative=True):
+def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold):
     def forward(C, CM, W, S, P, sig2):
         V = CM @ W
         E = sig2 * C @ np.random.randn(P.shape[0], P.shape[1])
         SP = S @ P
         return SP + V + E
 
-    def get_max_pref(P, relative):
-        if relative:
-            P_min = P.min(axis=0)
-            P_max = P.max(axis=0) - P_min
-            P_sum = (P - P_min).sum(axis=0)
-            P_max = P_max / P_sum
-        else:
-            P_max = P.max(axis=0)
-        return P_max
-
     P = np.repeat(model.P0, samples, axis=1)
     has_converged = True
     MAX_T = 100000
     CM = model.C @ model.M
-    if tb:
+    
+    if is_pref_based:
         n = samples
         converged = None
         t = 1
-        average_t = 0
         while n > 0 and t < MAX_T:
             W = np.random.binomial(1, model.w[0], n)
             W = np.vstack((W, 1.0 - W))
             P = forward(model.C, CM, W, model.S, P, model.sig2)
-            P_max = get_max_pref(P, relative)
+            P_max = P.max(axis=0)
 
             if converged is None:
-                converged = P[:, P_max >= threshold]
+                converged = P[:, P_max >= pref_threshold]
             else:
-                converged = np.hstack((converged, P[:, P_max >= threshold]))
+                converged = np.hstack((converged, P[:, P_max >= pref_threshold]))
 
-            P = P[:, P_max < threshold]
-            average_t += n
+            P = P[:, P_max < pref_threshold]
             n = P.shape[1]
             t += 1
 
         has_converged = n == 0
         P = converged
-        average_t /= samples
     else:
-        for t in range(1, T + 1):
+        for t in range(1, time_threshold + 1):
             W = np.random.binomial(1, model.w[0], samples)
             W = np.vstack((W, 1.0 - W))
             P = forward(model.C, CM, W, model.S, P, model.sig2)

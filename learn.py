@@ -14,26 +14,25 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/set_nopts7_ncomb1_nproblem100_no7.mat]
-    --o=STR                    output path. [default: results/NN/M/set_nopts7_ncomb1_nproblem100_no7]
+    --i=STR                    input data set. [default: data/set_nopts7_ncomb1_nproblem50_no7.mat]
+    --o=STR                    output path. [default: results/NN/M/set_nopts7_ncomb1_nproblem50_no7]
     --m=STR                    Learn M. [default: True]
     --w=STR                    Learn W. [default: False]
     --s=STR                    Learn S. [default: False]
 """
 import json
 from time import time
-
 from docpie import docpie
 import numpy as np
 from pprint import pprint
 from pathlib import Path
-
 import torch
-from helpers.profiling import global_profiler
-from trainer import train
 import mat4py
 
-from trainer_helpers import get_model_dist
+from mdft_nn.helpers.profiling import global_profiler
+from mdft_nn.trainer import train
+from mdft_nn.trainer_helpers import get_model_dist
+
 
 
 def get_options():
@@ -60,8 +59,6 @@ def load_data(opts):
             d['D'] = [d['D']]
         else:
             d['idx'] = d['idx'].tolist()
-
-        d['relative'] = False
     return data
 
 
@@ -105,9 +102,9 @@ def main():
 
     global_profiler.print_profile()
 
-    outPath = Path(opts['o'] + ".json")
-    outPath.parent.mkdir(exist_ok=True, parents=True)
-    with outPath.open(mode='w') as f:
+    out_path = Path(opts['o'] + ".json")
+    out_path.parent.mkdir(exist_ok=True, parents=True)
+    with out_path.open(mode='w') as f:
         results = {
             'nsamples': opts['ntrain'],
             'dataset': Path(opts['i']).name,
@@ -115,8 +112,8 @@ def main():
             'ntest': opts['ntest'],
         }
         json.dump(results, f, sort_keys=True, indent=4)
-    outPath = Path(opts['o'] + ".mat")
-    mat4py.savemat(str(outPath), results)
+    out_path = Path(opts['o'] + ".mat")
+    mat4py.savemat(str(out_path), results)
 
 
 if __name__ == "__main__":

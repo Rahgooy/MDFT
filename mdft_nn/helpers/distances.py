@@ -1,5 +1,4 @@
 import numpy as np
-import math
 
 
 def exponential(o1, o2):
@@ -7,7 +6,8 @@ def exponential(o1, o2):
 
 
 def hotaling_matrix(b, dtype=np.double):
-    H = np.array([[(b + 1) / 2, (b - 1) / 2], [(b - 1) / 2, (b + 1) / 2]], dtype=dtype)
+    H = np.array([[(b + 1) / 2, (b - 1) / 2],
+                  [(b - 1) / 2, (b + 1) / 2]], dtype=dtype)
     return H
 
 

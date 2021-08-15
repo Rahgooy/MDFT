@@ -3,9 +3,9 @@ import torch
 from torch import nn as nn
 
 
-class DFT_Net(nn.Module):
+class MDFT_Net(nn.Module):
     def __init__(self, options):
-        super(DFT_Net, self).__init__()
+        super(MDFT_Net, self).__init__()
         self.__set_options(options)
         self.__set_C()
         self.__set_S()

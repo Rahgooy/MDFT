@@ -1,11 +1,9 @@
-import json
-from os import name
 from pathlib import Path
 import numpy as np
 import mat4py
 import scipy
 
-from helpers.evaluation import kendalltau_dist, get_attr_index, jsd
+from mdft_nn.helpers.evaluation import kendalltau_dist, get_attr_index, jsd
 
 
 def load_data(path):
