@@ -32,12 +32,12 @@ def set_evaluations(results):
         w = w[idx]
         w_ = w_[idx]
 
-        dist1 = np.array(d['D']).reshape(-1, M.shape[0])
-        dist2 = np.array(r['freq']).reshape(-1, M.shape[0])
+        dist1 = np.array(d['D']) if np.array(d['D']).ndim > 1 else np.array([d['D']])
+        dist2 = np.array(r['freq']) if np.array(r['freq']).ndim > 1 else np.array([r['freq']])
 
-        r['jsd'] = np.mean([jsd(dist1[j], dist2[j])
+        r['jsd'] = np.mean([jsd(dist1[j], dist2[j], eps=1e-6)
                             for j in range(len(dist1))])
-        r['w_jsd'] = jsd(w, w_)
+        r['w_jsd'] = jsd(w, w_, eps=1e-6)
         r['re_order'] = re_order
 
 
