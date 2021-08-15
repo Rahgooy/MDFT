@@ -11,7 +11,7 @@ from torch.distributions import Bernoulli, Uniform
 
 from dft_net import DFT_Net
 
-MAX_T = 5000
+MAX_T = 200
 
 
 @profile
@@ -168,7 +168,7 @@ def clamp_parameters(nn_opts, opts):
 def get_hyper_params(nn_opts, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e0)
     w_lr = 0.001 if opts['m'] else 0.01
-    m_lr = 0.01
+    m_lr = 0.05
     w_decay = 0.8
     momentum = 0.1
     if opts['m']:

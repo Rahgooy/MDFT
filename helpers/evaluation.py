@@ -18,10 +18,13 @@ def dft_jsd(model1, model2, samples, T):
     return jsd(dist1, dist2), dist1.T, dist2.T
 
 
-def jsd(dist1, dist2):
+def jsd(dist1, dist2, eps=0.0):
     """Jensen-Shanon Divergence"""
-    dist1 = np.array(dist1)
-    dist2 = np.array(dist2)
+    dist1 = np.array(dist1) + eps
+    dist1 /= dist1.sum()
+    dist2 = np.array(dist2) + eps
+    dist2 /= dist2.sum()
+
     M = (dist1 + dist2) / 2
     jsd = (stats.entropy(dist1, M) + stats.entropy(dist2, M)) / 2
 

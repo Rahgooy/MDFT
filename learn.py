@@ -11,14 +11,14 @@ Examples:
 Options:
     -h --help                  Show this screen.
     --niter=INT                Number of iterations. [default: 150]
-    --nprint=INT               Number of iterations per print. [default: 1]
+    --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/set5.mat]
-    --o=STR                    output path. [default: results/Mw/set5]
-    --m                        Learn M. [default: True]
-    --w                        Learn W. [default: True]
-    --s                        Learn S. [default: False]
+    --i=STR                    input data set. [default: data/set_nopts7_ncomb1_nproblem100_no7.mat]
+    --o=STR                    output path. [default: results/NN/M/set_nopts7_ncomb1_nproblem100_no7]
+    --m=STR                    Learn M. [default: True]
+    --w=STR                    Learn W. [default: False]
+    --s=STR                    Learn S. [default: False]
 """
 import json
 from time import time
@@ -27,6 +27,8 @@ from docpie import docpie
 import numpy as np
 from pprint import pprint
 from pathlib import Path
+
+import torch
 from helpers.profiling import global_profiler
 from trainer import train
 import mat4py
@@ -52,13 +54,21 @@ def load_data(opts):
     data = mat4py.loadmat(opts['i'])
     data = data['dataset']
     for d in data:
-        d['idx'] = (np.array(d['idx']) - 1).tolist()  # adjust indexes to start from 0
+        d['idx'] = (np.array(d['idx']) - 1)  # adjust indexes to start from 0
+        if d['idx'].ndim == 1:
+            d['idx'] = [d['idx'].tolist()]
+            d['D'] = [d['D']]
+        else:
+            d['idx'] = d['idx'].tolist()
+
         d['relative'] = False
     return data
 
 
 def main():
     """Command line argument processing"""
+    np.random.seed(100)
+    torch.manual_seed(100)
     main_start = time()
     opts = get_options()
     pprint(opts)
@@ -66,8 +76,9 @@ def main():
 
     datasets = load_data(opts)
     results = []
-    for d in datasets:
+    for i, d in enumerate(datasets):
         print("*" * 90)
+        print(f"* #{i+1}")
         start = time()
         best, it = train(d, opts)
         best['time'] = time() - start

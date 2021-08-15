@@ -7,6 +7,7 @@ from helpers.profiling import profile, global_profiler as profiler
 from trainer_helpers import initi_nn_opts, get_nn_model, get_per_class_samples, get_model_predictions, \
     align_samples, \
     compute_loss, print_progress, clamp_parameters, get_model_dist
+import torch
 
 
 @profile
@@ -43,6 +44,7 @@ def train(dataset, opts):
             if opts['m']:
                 nn_opts['optimizer'].zero_grad()
                 l.backward()
+                torch.nn.utils.clip_grad_norm_(nn_opts['M'], 50)
                 nn_opts['optimizer'].step()
                 clamp_parameters(nn_opts, opts)
 
