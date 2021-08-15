@@ -1,12 +1,11 @@
 import json
+from os import name
 from pathlib import Path
 import numpy as np
 import mat4py
 import scipy
 
 from helpers.evaluation import kendalltau_dist, get_attr_index, jsd
-
-baseDir = Path('results/NN/')
 
 
 def load_data(path):
@@ -36,11 +35,14 @@ def set_evaluations(results):
         dist1 = np.array(d['D']).reshape(-1, M.shape[0])
         dist2 = np.array(r['freq']).reshape(-1, M.shape[0])
 
-        r['jsd'] = np.mean([jsd(dist1[j], dist2[j]) for j in range(len(dist1))])
+        r['jsd'] = np.mean([jsd(dist1[j], dist2[j])
+                            for j in range(len(dist1))])
         r['w_jsd'] = jsd(w, w_)
         r['re_order'] = re_order
 
-def summarize(baseDir):
+
+def summarize(model):
+    baseDir = Path(f'results/{model}/')
     summary = {}
     for dir in baseDir.iterdir():
         if dir.is_dir():
@@ -66,23 +68,24 @@ def summarize(baseDir):
     line_len = 132
     for p in summary:
         print(" " + "=" * line_len)
-        print(f"|{'learn ' + p:^131s} |")
+        print(f"|{f'learn {p}[{model}]':^131s} |")
         print(" " + "-" * line_len)
         print(f"| {'Set':38s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
-            f"{'time':^14s}  |")
+              f"{'time':^14s}  |")
         print(f"| {'':38s}|{'mean':^7s} {'sem':^7s} |  {'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |  "
-            f"{'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |")
+              f"{'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |")
         print(" " + "-" * line_len)
         for s in sorted(summary[p].keys()):
             kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
             print(f"| {s:38s}|{summary[p][s]['mse'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['mse']):>0.5f} |  "
-                f"{summary[p][s]['jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['jsd']):<0.5f} |  "
-                f"{summary[p][s]['w_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['w_jsd']):<0.5f} |  "
-                f"{kt.mean():<0.5f} {scipy.stats.sem(kt):<0.5f} |  "
-                f"{summary[p][s]['time'].mean():^7.2f} {scipy.stats.sem(summary[p][s]['time']):^7.2f} |"
-                )
+                  f"{summary[p][s]['jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['jsd']):<0.5f} |  "
+                  f"{summary[p][s]['w_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['w_jsd']):<0.5f} |  "
+                  f"{kt.mean():<0.5f} {scipy.stats.sem(kt):<0.5f} |  "
+                  f"{summary[p][s]['time'].mean():^7.2f} {scipy.stats.sem(summary[p][s]['time']):^7.2f} |"
+                  )
         print(" " + "-" * line_len)
         print("\n")
 
-summarize(Path('results/MLE/'))
-summarize(Path('results/NN/'))
+
+summarize('MLE')
+summarize('NN')
