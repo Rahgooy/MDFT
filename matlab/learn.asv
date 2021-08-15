@@ -1,5 +1,7 @@
-function [] = learn(nopts, ncomb, nproblem, na, s,)
+function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
     % s = 1: estimate M, 2 estimate w, 3 both
+    tic
+    curr_time = toc;
     names = ["M", "w", "Mw"];    
     set = sprintf('set_nopts%d_ncomb%d_nproblem%d_no%d', nopts, ncomb, nproblem, na);
     load(strcat('../data/', set, '.mat'), 'dataset');
@@ -27,7 +29,6 @@ function [] = learn(nopts, ncomb, nproblem, na, s,)
         na = size(D,2);
 
         options = optimset('Display','notify', 'Maxiter', 1000);
-        pred_D = zeros(nc, na);
         if s == 1
             best = 10000;
             for trial=1:2

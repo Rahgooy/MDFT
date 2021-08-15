@@ -1,7 +1,7 @@
 clear
 clc
 
-Ns = 10^4;  % no. of simulations per condition
+Ns = 5000;  % no. of simulations per condition
 nproblem = 50;
 
 for nopts=[3, 5, 7, 10]% Number of options in each dataset

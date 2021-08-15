@@ -17,7 +17,7 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
     for i = 1:size(dataset,2)
         disp(strcat('Estimating parameters for dataset #', string(i)))
         MM = dataset{i}.M;
-        fprintf(1, print_3d(MM));
+%         fprintf(1, print_3d(MM));
         params = dataset{i}.params;
         D = dataset{i}.D;
         idx = dataset{i}.idx;    
@@ -29,12 +29,12 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
         na = size(D,2);
 
         options = optimset('Display','notify', 'Maxiter', 1000);
-        pred_D = zeros(nc, na);
         if s == 1
             best = 10000;
             for trial=1:2
                 M0 = unifrnd(1, 10, size(MM));
-                [m, mse] = fminsearch(@(m) fitMDFTs_multi(log(params), D, exp(m), idx, C3, Ns), log(M0), options);
+                p = log(params);
+                [m, mse] = fminsearch(@(m) fitMDFTs_multi(p, D, exp(m), idx, C3, Ns), log(M0), options);
                 if mse < best
                     best = mse;
                     M = exp(m);
@@ -46,7 +46,7 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
             w0 = log(0.5);
             [w mse] = fminsearch(@(w) fitMDFTs_multi(([log(params(1:5)) w]), D, MM, idx, C3, Ns), w0, options);
             M = MM;
-            params(6) = exp(w);
+            params(6) = min(0.99, exp(w));
         end
 
         if s == 3
@@ -55,7 +55,7 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
             x0 = [w0 reshape(log(M0), 1, numel(MM))];
             [x mse] = fminsearch(@(x) fitMDFTs_multi(([log(params(1:5)) x(1)]), D, exp(reshape(x(2:end), size(MM))), idx, C3, Ns), x0, options);
             M = exp(reshape(x(2:end), size(MM)));
-            params(6) = exp(x(1));
+            params(6) = min(0.99, exp(x(1)));
         end
 
         [mse, P3, TV] = fitMDFTs_multi(log(params), D, M, idx, C3, Ns);
