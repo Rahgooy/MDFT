@@ -28,7 +28,7 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
         nc = size(D,1);
         na = size(D,2);
 
-        options = optimset('Display','notify', 'Maxiter', 1000);
+        options = optimset('Display','off', 'Maxiter', 1000);
         if s == 1
             best = 10000;
             for trial=1:2
