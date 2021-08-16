@@ -7,9 +7,9 @@ nproblem = 50;
 for nopts=[3, 5, 7, 10]% Number of options in each dataset
     combs = [1];
     na = nopts;
-    if nopts == 7
-        combs = [1, 3, 5, 10];
-    end
+%     if nopts == 7
+%         combs = [1, 3, 5, 10];
+%     end
     for ncomb=combs % Number of combinations of options that sampled
         if ncomb > 1
             na = 3;

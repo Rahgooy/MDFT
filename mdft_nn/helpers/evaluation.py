@@ -32,6 +32,8 @@ def jsd(dist1, dist2, eps=0.0):
 
 
 def kendalltau_dist(a, b):
+    a = np.argsort(a).tolist()
+    b = np.argsort(b).tolist()
     tau = 0
     n_candidates = len(a)
     for i, j in combinations(range(n_candidates), 2):
