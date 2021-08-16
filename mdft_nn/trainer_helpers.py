@@ -50,38 +50,50 @@ def compute_loss(pairs, nn_opts):
 
 
 @profile
-def get_model_predictions(model, learn_w, nsamples):
+def get_model_predictions(model, learn_w, nsamples, pref_based):
     W_list, converged, t, avg_t = [], None, 0, 0
     predictions = {x: [] for x in range(model.options_count)}
     P = torch.Tensor(np.repeat(model.P0, nsamples, axis=1).tolist())
-    n = nsamples
 
-    while n > 0 and t < MAX_T:
-        W = Bernoulli(probs=model.w[0][0]).sample([n])
-        W = torch.stack([W, 1 - W])
-        W.requires_grad = learn_w
-        W_list.append(W)
+    if pref_based:
+        n = nsamples
+        while n > 0 and t < MAX_T:
+            W = Bernoulli(probs=model.w[0][0]).sample([n])
+            W = torch.stack([W, 1 - W])
+            W.requires_grad = learn_w
+            W_list.append(W)
 
-        P = model.forward(W, P)
-        P_max, _ = P.max(0)
-        idx = np.argwhere(P_max >= model.threshold).squeeze(dim=0)
-        if converged is None or converged.shape[1] == 0:
-            converged = P[:, idx]
-        else:
-            if len(idx) > 0:
-                converged = torch.cat((converged, P[:, idx]), dim=1)
+            P = model.forward(W, P)
+            P_max, _ = P.max(0)
+            idx = np.argwhere(P_max >= model.threshold).squeeze(dim=0)
+            if converged is None or converged.shape[1] == 0:
+                converged = P[:, idx]
+            else:
+                if len(idx) > 0:
+                    converged = torch.cat((converged, P[:, idx]), dim=1)
 
-        avg_t += P.shape[1]
-        idx = np.argwhere(P_max < model.threshold).squeeze(dim=0)
-        P = P[:, idx]
-        n = P.shape[1]
-        t += 1
+            avg_t += P.shape[1]
+            idx = np.argwhere(P_max < model.threshold).squeeze(dim=0)
+            P = P[:, idx]
+            n = P.shape[1]
+            t += 1
 
-    if n > 0:
-        if converged is None:
-            converged = P
-        else:
-            converged = torch.cat((converged, P), dim=1)
+        if n > 0:
+            if converged is None:
+                converged = P
+            else:
+                converged = torch.cat((converged, P), dim=1)
+    else:
+        for i in range(model.threshold):
+            W = Bernoulli(probs=model.w[0][0]).sample([nsamples])
+            W = torch.stack([W, 1 - W])
+            W.requires_grad = learn_w
+            W_list.append(W)
+            avg_t += 1
+
+            P = model.forward(W, P) 
+        converged = P
+        avg_t = model.threshold * nsamples       
 
     mx = converged.argmax(0)
     for i in range(model.options_count):

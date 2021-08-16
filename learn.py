@@ -14,8 +14,8 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/set_nopts7_ncomb1_nproblem50_no7.mat]
-    --o=STR                    output path. [default: results/NN/M/set_nopts7_ncomb1_nproblem50_no7]
+    --i=STR                    input data set. [default: data/time_based/set_nopts7_ncomb1_nproblem50_no7.mat]
+    --o=STR                    output path. [default: results/NN//time_based/M/set_nopts7_ncomb1_nproblem50_no7]
     --m=STR                    Learn M. [default: True]
     --w=STR                    Learn W. [default: False]
     --s=STR                    Learn S. [default: False]
@@ -54,6 +54,7 @@ def load_data(opts):
     data = data['dataset']
     for d in data:
         d['idx'] = (np.array(d['idx']) - 1)  # adjust indexes to start from 0
+        d['pref_based'] = d['pref_based'] == 1
         if d['idx'].ndim == 1:
             d['idx'] = [d['idx'].tolist()]
             d['D'] = [d['D']]

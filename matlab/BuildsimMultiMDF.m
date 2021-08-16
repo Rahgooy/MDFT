@@ -12,8 +12,9 @@ for na = 3:15
     theta1 = 1.0;
     sig2 = 1.0;
     Ns = 10000;
+    pref_based = 1;
     filename = sprintf('simMDF_mex_%d', na);
-    config = { '-o', filename,  'simMDF.m', '-args', {G3,C3,M3,w,theta1,sig2,Ns}};
+    config = { '-o', filename,  'simMDF.m', '-args', {G3,C3,M3,w,theta1,sig2,Ns,pref_based}};
     codegen(config{:})
 end
 

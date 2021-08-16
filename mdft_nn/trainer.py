@@ -94,6 +94,6 @@ def forward_pass(nn_opts, dataset, j, w_decay, it, opts, ns):
         w_decay = nn_opts['w_decay'] ** (it // (opts['niter'] / 10))
 
     per_class_samples = get_per_class_samples(model, dataset['D'][j], ns)
-    predictions, w_list, a_t, _ = get_model_predictions(model, opts['w'], ns)
+    predictions, w_list, a_t, _ = get_model_predictions(model, opts['w'], ns, dataset['pref_based'])
     pairs, _ = align_samples(per_class_samples, predictions)
     return pairs, w_list, w_decay, a_t
