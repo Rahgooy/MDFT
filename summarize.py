@@ -11,8 +11,8 @@ def load_data(path):
     return data
 
 
-def set_evaluations(results):
-    dataset = load_data("data/" + results['dataset'])
+def set_evaluations(results, type):
+    dataset = load_data(f"data/{type}/" + results['dataset'])
     dataset = dataset['dataset']
     for i in range(len(dataset)):
         d = dataset[i]
@@ -40,49 +40,50 @@ def set_evaluations(results):
 
 
 def summarize(model):
-    baseDir = Path(f'results/{model}/')
-    summary = {}
-    for dir in baseDir.iterdir():
-        if dir.is_dir():
-            param_name = dir.name
-            summary[param_name] = {}
-            for s in dir.iterdir():
-                if s.is_file() and s.name.endswith(".mat"):
-                    set_name = s.name[:-4]
-                    # with s.open(mode='r') as f:
-                    data = load_data(str(s))  # json.load(f)
-                    set_evaluations(data)
-                    summary[param_name][set_name] = {
-                        'mse': np.array([d['mse'] for d in data['results']]),
-                        'jsd': np.array([d['jsd'] for d in data['results']]),
-                        'w_jsd': np.array([d['w_jsd'] for d in data['results']]),
-                        'kt1': np.array([d['kt1'] for d in data['results']]),
-                        'kt2': np.array([d['kt2'] for d in data['results']]),
-                        'time': np.array([d['time'] for d in data['results']]),
-                    }
+    for type in ['time_based', 'pref_based']:
+        summary = {}
+        baseDir = Path(f'results/{model}/{type}')
+        for dir in baseDir.iterdir():
+            if dir.is_dir():
+                param_name = dir.name
+                summary[param_name] = {}
+                for s in dir.iterdir():
+                    if s.is_file() and s.name.endswith(".mat"):
+                        set_name = s.name[:-4]
+                        # with s.open(mode='r') as f:
+                        data = load_data(str(s))  # json.load(f)
+                        set_evaluations(data, type)
+                        summary[param_name][set_name] = {
+                            'mse': np.array([d['mse'] for d in data['results']]),
+                            'jsd': np.array([d['jsd'] for d in data['results']]),
+                            'w_jsd': np.array([d['w_jsd'] for d in data['results']]),
+                            'kt1': np.array([d['kt1'] for d in data['results']]),
+                            'kt2': np.array([d['kt2'] for d in data['results']]),
+                            'time': np.array([d['time'] for d in data['results']]),
+                        }
 
-    np.set_printoptions(precision=4, suppress=False, linewidth=200)
+        np.set_printoptions(precision=4, suppress=False, linewidth=200)
 
-    line_len = 132
-    for p in summary:
-        print(" " + "=" * line_len)
-        print(f"|{f'learn {p}[{model}]':^131s} |")
-        print(" " + "-" * line_len)
-        print(f"| {'Set':38s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
-              f"{'time':^14s}  |")
-        print(f"| {'':38s}|{'mean':^7s} {'sem':^7s} |  {'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |  "
-              f"{'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |")
-        print(" " + "-" * line_len)
-        for s in sorted(summary[p].keys()):
-            kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
-            print(f"| {s:38s}|{summary[p][s]['mse'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['mse']):>0.5f} |  "
-                  f"{summary[p][s]['jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['jsd']):<0.5f} |  "
-                  f"{summary[p][s]['w_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['w_jsd']):<0.5f} |  "
-                  f"{kt.mean():<0.5f} {scipy.stats.sem(kt):<0.5f} |  "
-                  f"{summary[p][s]['time'].mean():^7.2f} {scipy.stats.sem(summary[p][s]['time']):^7.2f} |"
-                  )
-        print(" " + "-" * line_len)
-        print("\n")
+        line_len = 132
+        for p in summary:
+            print(" " + "=" * line_len)
+            print(f"|{f'learn {p}[{model}-{type}]':^131s} |")
+            print(" " + "-" * line_len)
+            print(f"| {'Set':38s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
+                f"{'time':^14s}  |")
+            print(f"| {'':38s}|{'mean':^7s} {'sem':^7s} |  {'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |  "
+                f"{'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |")
+            print(" " + "-" * line_len)
+            for s in sorted(summary[p].keys()):
+                kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
+                print(f"| {s:38s}|{summary[p][s]['mse'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['mse']):>0.5f} |  "
+                    f"{summary[p][s]['jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['jsd']):<0.5f} |  "
+                    f"{summary[p][s]['w_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['w_jsd']):<0.5f} |  "
+                    f"{kt.mean():<0.5f} {scipy.stats.sem(kt):<0.5f} |  "
+                    f"{summary[p][s]['time'].mean():^7.2f} {scipy.stats.sem(summary[p][s]['time']):^7.2f} |"
+                    )
+            print(" " + "-" * line_len)
+            print("\n")
 
 
 summarize('MLE')

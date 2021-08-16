@@ -17,6 +17,7 @@ fprintf(f, set);
 fprintf(f, '\nNs: %d\n', Ns);
 mse_list = zeros(1, 10);
 results = {};
+max_trials = 2;
 for i = 1:size(dataset,2)
     disp(strcat('Estimating parameters for dataset #', string(i)))
     MM = dataset{i}.M;
@@ -32,27 +33,46 @@ for i = 1:size(dataset,2)
     na = size(D,2);
     
     options = optimset('Display','off', 'Maxiter', 1000);
+    
     if s == 1
-        M0 = unifrnd(1, 10, size(MM));
-        p = log(params);
-        [m, mse] = fminsearch(@(m) fitMDFTs_multi(p, D, exp(m), idx, C3, Ns, pref_based), log(M0), options);
-        M = exp(m);
+        best = 10000;
+        for trial=1:max_trials
+            M0 = unifrnd(1, 10, size(MM));
+            p = log(params);
+            [m, mse] = fminsearch(@(m) fitMDFTs_multi(p, D, exp(m), idx, C3, Ns, pref_based), log(M0), options);
+            if mse < best
+                M = exp(m);
+                best = mse;
+            end
+        end
     end
     
     if s == 2
-        w0 = log(0.5);
-        [w mse] = fminsearch(@(w) fitMDFTs_multi(([log(params(1:5)) w]), D, MM, idx, C3, Ns, pref_based), w0, options);
-        M = MM;
-        params(6) = min(0.99, exp(w));
+        best = 10000;
+        for trial=1:max_trials
+            w0 = log(0.5);
+            [w, mse] = fminsearch(@(w) fitMDFTs_multi(([log(params(1:5)) w]), D, MM, idx, C3, Ns, pref_based), w0, options);
+            M = MM;
+            if mse < best
+                params(6) = min(0.99, exp(w));
+                best = mse;                
+            end
+        end
     end
     
     if s == 3
-        M0 = unifrnd(1, 10, size(MM));
-        w0 = log(0.5);
-        x0 = [w0 reshape(log(M0), 1, numel(MM))];
-        [x mse] = fminsearch(@(x) fitMDFTs_multi(([log(params(1:5)) x(1)]), D, exp(reshape(x(2:end), size(MM))), idx, C3, Ns, pref_based), x0, options);
-        M = exp(reshape(x(2:end), size(MM)));
-        params(6) = min(0.99, exp(x(1)));
+        best = 10000;
+        for trial=1:max_trials
+            M0 = unifrnd(1, 10, size(MM));
+            w0 = log(0.5);
+            x0 = [w0 reshape(log(M0), 1, numel(MM))];
+            [x, mse] = fminsearch(@(x) fitMDFTs_multi(([log(params(1:5)) x(1)]), D, exp(reshape(x(2:end), size(MM))), idx, C3, Ns, pref_based), x0, options);
+            if mse < best
+                M = exp(reshape(x(2:end), size(MM)));
+                params(6) = min(0.99, exp(x(1)));
+                best = mse;
+            end
+        end
     end
     
     [mse, P3, TV] = fitMDFTs_multi(log(params), D, M, idx, C3, Ns, pref_based);
