@@ -1,5 +1,5 @@
-function [P3, T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns)
-% function [P3 T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns)
+function [P3, T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns,pref_based)
+% function [P3 T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns,pref_based)
 
 % S3 is the n x n gamma feedback matrix
 % C3 is a contrast matrix 
@@ -19,18 +19,14 @@ options = 1:nd;
 Ind = 0;
 for ns = 1:Ns
     B = 0; t=0; P = zeros(nd,1);   
-    while (B < theta1)
-     % WV = random(multipd,1,1);
-        W = w(1) > rand; 
-        W = [W ; (1-W)];    % pick an attribute
-     %  W = ( WV == Na);
-       E3 = C3*M3*(W-w.*h) + sig2*C3*randn(nd,1);  % compute noise 
-       P = P + G3*P*h + V3*h + E3*hh;   % accumulate
-       [B,Ind] = max(P);      % find max
-       t = t+h;               % track time
-  %     [n t]
+    while ((pref_based && B < theta1) || (~pref_based && t < theta1))
+      W = w(1) > rand; 
+      W = [W ; (1-W)];    % pick an attribute
+      E3 = C3*M3*(W-w.*h) + sig2*C3*randn(nd,1);  % compute noise 
+      P = P + G3*P*h + V3*h + E3*hh;   % accumulate
+      [B,Ind] = max(P);      % find max
+      t = t+h;               % track time
     end % one simulation
-%     P3 = P3 +  [Ind ==1  Ind==2 Ind==3];
     P3 = P3 + (options == Ind);
     T = T + t;
 end % all N  simulations

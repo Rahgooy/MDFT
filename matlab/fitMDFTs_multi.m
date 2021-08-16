@@ -1,4 +1,4 @@
-function [mse, P3, TV] = fitMDFTs_multi(params, D, MM, idx, C3, Ns)
+function [mse, P3, TV] = fitMDFTs_multi(params, D, MM, idx, C3, Ns, pref_based)
 % function [sse, P3, T] = fitMDFTs_multi(params, D, MM, idx, C3, Ns)
 % ccluates predicted and compare to observed
 
@@ -20,7 +20,7 @@ for i = 1:nc
     M3 =MM(idx(i, :), :);
     [G3, ~] = distfunct(M3,wgt,phi1,phi2);  % returns gamma
     simName = sprintf('simMDF_mex_%d', size(G3, 2));
-    f = sprintf('%s(G3,C3,M3,w,theta1,sig2,Ns)', simName);
+    f = sprintf('%s(G3,C3,M3,w,theta1,sig2,Ns,pref_based)', simName);
     [p3, T] = eval(f);  %simMDF_mex(G3,C3,M3,w,theta1,sig2,Ns);     
     
    

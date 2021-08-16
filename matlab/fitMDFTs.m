@@ -21,7 +21,7 @@ for i = 1:nc
     M3 =MM(:,:,i);
     [G3, EG] = distfunct(M3,wgt,phi1,phi2);  % returns gamma
   %  EG
-    [p3, T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns);   
+    [p3, T] = simMDF(G3,C3,M3,w,theta1,sig2,Ns, 1);   
    
     P3(i,:) =  p3;
     TV(i) = T;

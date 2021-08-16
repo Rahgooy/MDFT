@@ -16,7 +16,8 @@ for nopts=[3, 5, 7, 10]% Number of options in each dataset
         end
         rng(100); % Set the seed
         for s = [1, 2, 3] % 1: estimate M, 2 estimate w, 3 both
-            learn(nopts, ncomb, nproblem, na, s, Ns);
+            % learn(nopts, ncomb, nproblem, na, s, Ns, 1);
+            learn(nopts, ncomb, nproblem, na, s, Ns, 0);
         end
     end
 end

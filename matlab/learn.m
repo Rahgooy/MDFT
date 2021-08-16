@@ -1,15 +1,17 @@
-function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
+function [] = learn(nopts, ncomb, nproblem, na, s, Ns, pref_based)
     % s = 1: estimate M, 2 estimate w, 3 both
     tic
     curr_time = toc;
-    names = ["M", "w", "Mw"];    
+    names = ["M", "w", "Mw"];  
+    models = ["time_based", "pref_based"]
     set = sprintf('set_nopts%d_ncomb%d_nproblem%d_no%d', nopts, ncomb, nproblem, na);
-    load(strcat('../data/', set, '.mat'), 'dataset');
+    load(strcat('../data/', models[pref_based], '/', set, '.mat'), 'dataset');
 
     mkdir('../results')
     mkdir('../results/MLE')
-    mkdir(strcat('../results/MLE/', names(s)))
-    f = fopen(strcat('../results/MLE/', names(s), '/', set, '.txt'), 'w');
+    mkdir('../results/MLE/', models[pref_based])
+    mkdir(strcat('../results/MLE/', models[pref_based], '/', names(s)))
+    f = fopen(strcat('../results/MLE/', models[pref_based], '/', names(s), '/', set, '.txt'), 'w');
     fprintf(f, set);
     fprintf(f, '\nNs: %d\n', Ns);  
     mse_list = zeros(1, 10);
@@ -101,5 +103,5 @@ function [] = learn(nopts, ncomb, nproblem, na, s, Ns)
     dataset = strcat(set, '.mat');
     nsamples = Ns;
     ntest = Ns;
-    save(strcat('../results/MLE/', names(s), '/', set, '.mat'), 'dataset', 'nsamples','ntest', 'results');
+    save(strcat('../results/MLE/', models[pref_based], '/', names(s), '/', set, '.mat'), 'dataset', 'nsamples','ntest', 'results');
 end
