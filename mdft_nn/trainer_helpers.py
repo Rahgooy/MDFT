@@ -1,7 +1,7 @@
 import functools
 import operator
 
-from mdft_nn.mdft import MDFT, get_preference_based_dft_dist
+from mdft_nn.mdft import MDFT, get_preference_based_dft_dist, get_time_based_dft_dist
 from mdft_nn.helpers.distances import hotaling_S
 from mdft_nn.helpers.profiling import profile
 from mdft_nn.mdft_net import MDFT_Net
@@ -89,11 +89,10 @@ def get_model_predictions(model, learn_w, nsamples, pref_based):
             W = torch.stack([W, 1 - W])
             W.requires_grad = learn_w
             W_list.append(W)
-            avg_t += 1
 
-            P = model.forward(W, P) 
+            P = model.forward(W, P)
         converged = P
-        avg_t = model.threshold * nsamples       
+        avg_t = model.threshold * nsamples
 
     mx = converged.argmax(0)
     for i in range(model.options_count):
@@ -236,6 +235,10 @@ def get_model_dist(model, data, n):
         S = hotaling_S(M, model['phi1'], model['phi2'], model['b'])
         P0 = np.zeros((M.shape[0], 1))
         m = MDFT(M, S, np.array(model['w']), P0, np.array(model['sig2']))
-        f, _ = get_preference_based_dft_dist(m, n, model["threshold"])
+        if data['pref_based']:
+            f = get_preference_based_dft_dist(m, n, model["threshold"])
+        else:
+            f = get_time_based_dft_dist(m, n, model["threshold"])
+
         freq_list.append(f.squeeze().tolist())
     return freq_list

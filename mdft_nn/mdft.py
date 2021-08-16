@@ -18,12 +18,13 @@ class MDFT:
 
 
 def get_time_based_dft_dist(model, samples, time_threshold):
-    dist, _, _ = __get_dft_dist(model, samples, False, time_threshold, 0)
+    dist, _ = __get_dft_dist(model, samples, False, time_threshold, 0)
     return dist
 
 
 def get_preference_based_dft_dist(model, samples, pref_threshold):
-    return __get_dft_dist(model, samples, True, 0, pref_threshold)
+    dist, _ = __get_dft_dist(model, samples, True, 0, pref_threshold)
+    return dist
 
 
 def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold):
@@ -37,7 +38,7 @@ def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold
     has_converged = True
     MAX_T = 100000
     CM = model.C @ model.M
-    
+
     if is_pref_based:
         n = samples
         converged = None
@@ -51,7 +52,8 @@ def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold
             if converged is None:
                 converged = P[:, P_max >= pref_threshold]
             else:
-                converged = np.hstack((converged, P[:, P_max >= pref_threshold]))
+                converged = np.hstack(
+                    (converged, P[:, P_max >= pref_threshold]))
 
             P = P[:, P_max < pref_threshold]
             n = P.shape[1]
@@ -66,6 +68,7 @@ def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold
             P = forward(model.C, CM, W, model.S, P, model.sig2)
 
     choice_indices = P.argmax(axis=0)
-    dist = np.array(np.bincount(choice_indices, minlength=P.shape[0]), dtype=np.double) / samples
+    dist = np.array(np.bincount(
+        choice_indices, minlength=P.shape[0]), dtype=np.double) / samples
 
     return dist.reshape(-1, 1), has_converged
