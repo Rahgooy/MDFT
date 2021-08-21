@@ -86,7 +86,8 @@ def extract_metric(m, metric, nsamples=None, x_val=lambda x: x['no'], no=None):
     return x, y, err
 
 
-def plot_metric(jsd_data, type, yscale, metric, ylabel, name='options', legend=True, legend_loc='upper left'):
+def plot_metric(jsd_data, type, yscale, metric, ylabel, name='options', legend=True,
+                legend_loc='upper left'):
     x_vals = [20, 30, 50, 100, 150] if name == 'samples' else [3, 5, 7, 10]
     w = 0.7
     for param in jsd_data:
@@ -104,13 +105,12 @@ def plot_metric(jsd_data, type, yscale, metric, ylabel, name='options', legend=T
         # Two unit space between bars. One unit padding and start from 0
         idx = np.arange(1, len(x_vals)*2 + 1, 2).tolist()
         plt.xticks([0] + idx + [idx[-1] + 1], labels=[''] + x_vals + [''])
-
         plt.yscale(yscale)
         plt.ylabel(ylabel, fontweight='black', fontfamily='Arial')
         xlabel = 'Number of options' if name == 'options' else 'Training sample size'
         plt.xlabel(xlabel, fontweight='black', fontfamily='Arial')
         ax_style(ax)
-        
+
         if legend:
             plt.legend(loc=legend_loc)
         plt.tight_layout()
@@ -147,6 +147,7 @@ def option_size_plot(summary_list, type):
     w_jsd_data = defaultdict(list)
     jsd_data = defaultdict(list)
     kt_data = defaultdict(list)
+    time_data = defaultdict(list)
     for model in summary_list:
         model_summary = summary_list[model]
         for param in model_summary:
@@ -165,9 +166,15 @@ def option_size_plot(summary_list, type):
             kt_data[param].append(
                 {'x': x, 'y': y, 'err': err, 'model': model})
 
+            x, y, err = extract_metric(
+                model_summary[param], 'time', 100 if model == 'NN' else 5000)
+            time_data[param].append(
+                {'x': x, 'y': y, 'err': err, 'model': model})
+
     plot_metric(jsd_data, type, 'log', 'jsd', 'JS-Divergence $D_{js}$')
     plot_metric(w_jsd_data, type, 'log', 'w_jsd', 'JS-Divergence $D_{js}$')
     plot_metric(kt_data, type, 'linear', 'kt', "Kendall's $\\tau$")
+    plot_metric(time_data, type, 'linear', 'time', "Training time in seconds$")
 
 
 def sample_size_plot(summary_list, type):
