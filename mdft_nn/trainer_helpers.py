@@ -186,6 +186,15 @@ def get_hyper_params(nn_opts, opts):
     w_decay = 0.8
     momentum = 0.1
     grad_clip = 50
+
+    if 'grad_clip' in opts:
+        grad_clip = opts['grad_clip']
+    if 'm_lr' in opts:
+        m_lr = opts['m_lr']
+    if 'w_lr' in opts:
+        w_lr = opts['w_lr']
+    if 'w_decay' in opts:
+        w_decay = opts['w_decay']
     if opts['m']:
         optim = torch.optim.Adam([nn_opts['M']], lr=m_lr)
     else:
