@@ -14,8 +14,8 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/pref_based/set_nopts10_ncomb1_nproblem50_no10.mat]
-    --o=STR                    output path. [default: results/NN/pref_based/M/set_nopts10_ncomb1_nproblem50_no10]
+    --i=STR                    input data set. [default: data/example.json]
+    --o=STR                    output path. [default: results/NN/example/M]
     --m=STR                    Learn M. [default: True]
     --w=STR                    Learn W. [default: False]
     --s=STR                    Learn S. [default: False]
@@ -28,6 +28,7 @@ from pprint import pprint
 from pathlib import Path
 import torch
 import mat4py
+import json
 
 from mdft_nn.helpers.profiling import global_profiler
 from mdft_nn.trainer import train
@@ -50,16 +51,20 @@ def get_options():
 
 
 def load_data(opts):
-    data = mat4py.loadmat(opts['i'])
-    data = data['dataset']
-    for d in data:
-        d['idx'] = (np.array(d['idx']) - 1)  # adjust indexes to start from 0
-        d['pref_based'] = d['pref_based'] == 1
-        if d['idx'].ndim == 1:
-            d['idx'] = [d['idx'].tolist()]
-            d['D'] = [d['D']]
-        else:
-            d['idx'] = d['idx'].tolist()
+    if opts['i'].endswith('json'):
+        with open(opts['i']) as f:
+            data = json.load(f)
+    else:
+        data = mat4py.loadmat(opts['i'])
+        data = data['dataset']
+        for d in data:
+            d['idx'] = (np.array(d['idx']) - 1)  # adjust indexes to start from 0
+            d['pref_based'] = d['pref_based'] == 1
+            if d['idx'].ndim == 1:
+                d['idx'] = [d['idx'].tolist()]
+                d['D'] = [d['D']]
+            else:
+                d['idx'] = d['idx'].tolist()
     return data
 
 
