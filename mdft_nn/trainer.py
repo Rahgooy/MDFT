@@ -46,8 +46,10 @@ def train(dataset, opts):
             "avg_t": avg_t
         }
         dist = get_model_dist(mdl, dataset, 1000)
-        mse = np.array(dataset['D']) - np.array(dist)
-        mse = (mse * mse).sum() / nc
+        mse = 0
+        for i in range(nc):
+            m = np.array(dataset['D'][i]) - np.array(dist[i])
+            mse += (m*m).sum() / nc
         mdl['mse'] = mse
         if mse < best_mse:
             best_mse = mse

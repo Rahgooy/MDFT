@@ -109,6 +109,8 @@ def get_model_predictions(model, learn_w, nsamples, pref_based):
 def get_nn_model(nn_opts, idx):
     o = nn_opts.copy()
     o['M'] = o['M'][idx]
+    o['P0'] = np.zeros((len(idx), 1))
+    o['options_count'] = len(idx)
     model = MDFT_Net(o)
     return model
 
@@ -224,10 +226,10 @@ def get_nn_options(data, opts):
         else torch.tensor([data['phi2']], requires_grad=False),
         'b': torch.tensor([10.0], requires_grad=True) if opts['s']
         else torch.tensor([float(data['b'])], requires_grad=False),
-        'options_count': o,
+        # 'options_count': o,
         'attr_count': a,
         'M': M,
-        'P0': np.zeros((o, 1)),
+        # 'P0': np.zeros((o, 1)),
         'w': w,
         'sig2': data['sig2'],
         'threshold': data['threshold']

@@ -35,7 +35,6 @@ from mdft_nn.trainer import train
 from mdft_nn.trainer_helpers import get_model_dist
 
 
-
 def get_options():
     opts = docpie(__doc__)
     # remove '--' in front of option names
@@ -58,7 +57,8 @@ def load_data(opts):
         data = mat4py.loadmat(opts['i'])
         data = data['dataset']
         for d in data:
-            d['idx'] = (np.array(d['idx']) - 1)  # adjust indexes to start from 0
+            # adjust indexes to start from 0
+            d['idx'] = (np.array(d['idx']) - 1)
             d['pref_based'] = d['pref_based'] == 1
             if d['idx'].ndim == 1:
                 d['idx'] = [d['idx'].tolist()]
@@ -87,17 +87,22 @@ def main():
         best['time'] = time() - start
 
         freq_list = get_model_dist(best, d, opts['ntest'])
-        mse = np.array(d['D']) - np.array(freq_list)
-        mse = (mse * mse).sum() / len(freq_list)
+        mse = 0
+        nc = len(d['D'])
+        for i in range(len(d['D'])):
+            m = np.array(d['D'][i]) - np.array(freq_list[i])
+            mse += (m*m).sum() / nc
 
         best['freq'] = freq_list
         best['mse'] = mse
         best['actual_freq'] = d['D']
 
         print("pred freq:")
-        print(np.array(freq_list))
+        for row in freq_list:
+            print(np.array(row))
         print("Actual freq:")
-        print(np.array(d['D']))
+        for row in d['D']:
+            print(np.array(row))
         print(f"MSE: {mse:0.4f}")
 
         results.append(best)
