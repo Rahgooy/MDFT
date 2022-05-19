@@ -35,3 +35,21 @@ for nsamples in 20 30 50 150; do
       --o "results/NN/${type}/M/set_nopts5_ncomb1_nproblem50_no5_nsamples${nsamples}"
   done
 done
+
+python learn.py \
+  --m True \
+  --w False \
+  --i "data/pref_based/set_nopts10_ncomb10_nproblem50_no3.mat" \
+  --o "results/NN/pref_based/M/set_nopts10_ncomb10_nproblem50_no3"
+
+python learn.py \
+  --m False \
+  --w True \
+  --i "data/pref_based/set_nopts10_ncomb10_nproblem50_no3.mat" \
+  --o "results/NN/pref_based/w/set_nopts10_ncomb10_nproblem50_no3"
+
+python learn.py \
+  --m True \
+  --w True \
+  --i "data/pref_based/set_nopts10_ncomb10_nproblem50_no3.mat" \
+  --o "results/NN/pref_based/Mw/set_nopts10_ncomb10_nproblem50_no3"

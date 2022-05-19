@@ -36,7 +36,7 @@ def __get_dft_dist(model, samples, is_pref_based, time_threshold, pref_threshold
 
     P = np.repeat(model.P0, samples, axis=1)
     has_converged = True
-    MAX_T = 100000
+    MAX_T = 10000
     CM = model.C @ model.M
 
     if is_pref_based:

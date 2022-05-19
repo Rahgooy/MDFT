@@ -14,8 +14,8 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/example.json]
-    --o=STR                    output path. [default: results/NN/example/M]
+    --i=STR                    input data set. [default: data/sushi.json]
+    --o=STR                    output path. [default: results/NN/pref_based/M/sushi]
     --m=STR                    Learn M. [default: True]
     --w=STR                    Learn W. [default: False]
     --s=STR                    Learn S. [default: False]
@@ -110,8 +110,6 @@ def main():
     print(f"average MSE: {sum([s['mse'] for s in results]) / len(results)}")
 
     print(f"Time elapsed {time() - main_start:0.2f} seconds")
-
-    global_profiler.print_profile()
 
     out_path = Path(opts['o'] + ".json")
     out_path.parent.mkdir(exist_ok=True, parents=True)

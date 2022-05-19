@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from collections import defaultdict
 import numpy as np
@@ -5,21 +6,28 @@ import mat4py
 from numpy.core.defchararray import index
 import scipy
 from matplotlib import pyplot as plt
-
+from mdft_nn.trainer_helpers import get_model_dist
 from mdft_nn.helpers.evaluation import kendalltau_dist, get_attr_index, jsd
 
 
 def load_data(path):
-    data = mat4py.loadmat(path)
+    if path.endswith('json'):
+        with open(path) as f:
+            data = json.load(f)
+    else:
+        data = mat4py.loadmat(path)
+    if 'results' in data and type(data['results']) != list:
+        data['results'] = [data['results']]
     return data
 
 
-def set_evaluations(results, type):
-    dataset = load_data(f"data/{type}/" + results['dataset'])
-    dataset = dataset['dataset']
+def set_evaluations(results, type_):
+    dataset = load_data(f"data/{type_}/" + results['dataset'])
+    dataset = dataset['dataset'] if 'dataset' in dataset else dataset
     for i in range(len(dataset)):
         d = dataset[i]
         r = results['results'][i]
+        r['data'] = d
         M = np.array(d['M'])
         M_ = np.array(r['M'])
         idx = get_attr_index(M, M_)
@@ -56,26 +64,26 @@ def print_summary(summary, model, type):
         print(" " + "=" * line_len)
         print(f"|{f'learn {p}[{model}-{type}]':^139s} |")
         print(" " + "-" * line_len)
-        print(f"| {'Set':46s}|{'MSE':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
-              f"{'time':^14s}  |")
+        print(f"| {'Set':46s}|{'Subset-JSD':^14s}  |  {'JSD Choice':^14s}  |  {'JSD W':^14s}  |  {'kt mean':^14s}  |  "
+              f"{'whole_jsd':^14s}  |")
         print(f"| {'':46s}|{'mean':^7s} {'sem':^7s} |  {'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |  "
               f"{'mean':^7s} {'sem':^7} |  {'mean':^7s} {'sem':^7} |")
         print(" " + "-" * line_len)
         for s in sorted(summary[p].keys()):
             kt = (summary[p][s]['kt1'] + summary[p][s]['kt2']) / 2
-            print(f"| {s:46s}|{summary[p][s]['mse'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['mse']):>0.5f} |  "
+            print(f"| {s:46s}|{summary[p][s]['subsets_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['subsets_jsd']):>0.5f} |  "
                   f"{summary[p][s]['jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['jsd']):<0.5f} |  "
                   f"{summary[p][s]['w_jsd'].mean():<0.5f} {scipy.stats.sem(summary[p][s]['w_jsd']):<0.5f} |  "
                   f"{kt.mean():<0.5f} {scipy.stats.sem(kt):<0.5f} |  "
-                  f"{summary[p][s]['time'].mean():^7.2f} {scipy.stats.sem(summary[p][s]['time']):^7.2f} |"
+                  f"{summary[p][s]['whole_jsd'].mean():^0.5f} {scipy.stats.sem(summary[p][s]['whole_jsd']):^0.5f} |"
                   )
         print(" " + "-" * line_len)
         print("\n")
 
 
-def extract_metric(m, metric, nsamples=None, x_val=lambda x: x['no'], no=None):
+def extract_metric(m, metric, nsamples=None, x_val=lambda x: x['no'], no=None, ncomb=1):
     vals = [(x_val(m[d]), m[d][metric].mean(), scipy.stats.sem(m[d][metric]))
-            for d in m if (m[d]['ncombs'] == 1) and
+            for d in m if (m[d]['ncombs'] == ncomb) and
             (nsamples is None or m[d]['nsamples'] == nsamples) and
             (no is None or m[d]['no'] == no)]
     vals = sorted(vals, key=lambda x: x[0])
@@ -146,6 +154,7 @@ def style():
 def option_size_plot(summary_list, type):
     w_jsd_data = defaultdict(list)
     jsd_data = defaultdict(list)
+    jsd_subsets_data = defaultdict(list)
     kt_data = defaultdict(list)
     time_data = defaultdict(list)
     for model in summary_list:
@@ -154,6 +163,11 @@ def option_size_plot(summary_list, type):
             x, y, err = extract_metric(
                 model_summary[param], 'jsd', 100 if model == 'NN' else 5000)
             jsd_data[param].append(
+                {'x': x, 'y': y, 'err': err, 'model': model})
+
+            x, y, err = extract_metric(
+                model_summary[param], 'subsets_jsd', 100 if model == 'NN' else 5000)
+            jsd_subsets_data[param].append(
                 {'x': x, 'y': y, 'err': err, 'model': model})
 
             x, y, err = extract_metric(
@@ -172,6 +186,10 @@ def option_size_plot(summary_list, type):
                 {'x': x, 'y': y, 'err': err, 'model': model})
 
     plot_metric(jsd_data, type, 'log', 'jsd', 'JS-Divergence $D_{js}$')
+    plot_metric(jsd_subsets_data, type, 'log',
+                'subsets_jsd', 'JS-Divergence $D_{js}$')
+    plot_metric(jsd_subsets_data, type, 'log',
+                'whole_jsd', 'JS-Divergence $D_{js}$')
     plot_metric(w_jsd_data, type, 'log', 'w_jsd', 'JS-Divergence $D_{js}$')
     plot_metric(kt_data, type, 'linear', 'kt', "Kendall's $\\tau$")
     plot_metric(time_data, type, 'linear', 'time', "Training time in seconds$")
@@ -197,9 +215,49 @@ def sample_size_plot(summary_list, type):
                 'JS-Divergence $D_{js}$', 'samples', legend=False)
 
 
+def test_new_sets(r, n=5):
+    if('test_idx' in r['data']):
+        data = {
+            'pref_based': r['data']['pref_based'],
+            'idx': r['data']['test_idx']
+        }
+        pred_freq = get_model_dist(r, data, 10000)
+        actual_freq = np.array(r['data']['test_D'])
+        return np.mean([jsd(d1, d2) for d1, d2 in zip(pred_freq, actual_freq)])
+
+    i = 0
+    new_set_idx = []
+    idx = r['data']['idx']
+    idx = idx if type(idx[0]) == list else [idx]
+    idx = [tuple(i) for i in idx]
+    while i < n:
+        perm = np.random.permutation(range(len(r['M'])))[:3]
+        if tuple(perm) not in idx:
+            new_set_idx.append(perm)
+            i += 1
+
+    data = {
+        'pref_based': r['data']['pref_based'],
+        'idx': new_set_idx
+    }
+    pred_freq = get_model_dist(r, data, 1000)
+    actual_freq = get_model_dist(r['data'], data, 10000)
+    return np.mean([jsd(d1, d2) for d1, d2 in zip(pred_freq, actual_freq)])
+
+
+def test_whole(r):
+    data = {
+        'pref_based': r['data']['pref_based'],
+        'idx': [list(range(len(r['M'])))]
+    }
+    pred_freq = get_model_dist(r, data, 1000)
+    actual_freq = r['whole_D'] if 'whole_D' in r else get_model_dist(r['data'], data, 10000) 
+    return np.mean([jsd(d1, d2) for d1, d2 in zip(pred_freq, actual_freq)])
+
+
 def summarize():
     style()
-    for type in ['time_based', 'pref_based']:
+    for type in ['pref_based']:
         summary_list = {}
         for model in ['MLE', 'NN']:
             summary = {}
@@ -214,6 +272,10 @@ def summarize():
                             set_name = s.name[:-4]
                             data = load_data(str(s))
                             set_evaluations(data, type)
+                            subsets_jsd = np.array(
+                                [test_new_sets(d) for d in data['results']])
+                            whole_jsd = np.array(
+                                [test_whole(d) for d in data['results']])
                             summary[param_name][set_name] = {
                                 'no': data['results'][0]['no'],
                                 'ncombs': data['results'][0]['ncombs'],
@@ -221,6 +283,8 @@ def summarize():
                                 'nsamples': data['nsamples'],
                                 'mse': np.array([d['mse'] for d in data['results']]),
                                 'jsd': np.array([d['jsd'] for d in data['results']]),
+                                'subsets_jsd': subsets_jsd,
+                                'whole_jsd': whole_jsd,
                                 'kt': np.array([d['kt'] for d in data['results']]),
                                 'w_jsd': np.array([d['w_jsd'] for d in data['results']]),
                                 'kt1': np.array([d['kt1'] for d in data['results']]),

@@ -34,7 +34,7 @@ class Profiler:
         self.out.write("=" * 85 + "\n")
 
 
-global_profiler = Profiler(True)
+global_profiler = Profiler(False)
 
 
 def profile(func, profiler=global_profiler):
