@@ -8,6 +8,7 @@ from mdft_nn.mdft_net import MDFT_Net
 
 import numpy as np
 import torch
+from torch.nn import functional as F
 from torch.distributions import Bernoulli, Uniform
 
 
@@ -51,18 +52,14 @@ def compute_loss(pairs, nn_opts):
 
 @profile
 def get_model_predictions(model, learn_w, nsamples, pref_based):
-    W_list, converged, t, avg_t = [], None, 0, 0
+    converged, t, avg_t = None, 0, 0
     predictions = {x: [] for x in range(model.options_count)}
     P = torch.Tensor(np.repeat(model.P0, nsamples, axis=1).tolist())
 
     if pref_based:
         n = nsamples
         while n > 0 and t < MAX_T:
-            W = Bernoulli(probs=model.w[0][0]).sample([n])
-            W = torch.stack([W, 1 - W])
-            W.requires_grad = learn_w
-            W_list.append(W)
-
+            W = F.gumbel_softmax(logits=model.w.T.repeat((n, 1)), hard=True).T
             P = model.forward(W, P)
             P_max, _ = P.max(0)
             idx = np.argwhere(P_max >= model.threshold).squeeze(dim=0)
@@ -77,7 +74,6 @@ def get_model_predictions(model, learn_w, nsamples, pref_based):
             P = P[:, idx]
             n = P.shape[1]
             t += 1
-
         if n > 0:
             if converged is None:
                 converged = P
@@ -85,11 +81,8 @@ def get_model_predictions(model, learn_w, nsamples, pref_based):
                 converged = torch.cat((converged, P), dim=1)
     else:
         for i in range(model.threshold):
-            W = Bernoulli(probs=model.w[0][0]).sample([nsamples])
-            W = torch.stack([W, 1 - W])
-            W.requires_grad = learn_w
-            W_list.append(W)
-
+            W = F.gumbel_softmax(logits=model.w.T.repeat(
+                (nsamples, 1)), hard=True).T
             P = model.forward(W, P)
         converged = P
         avg_t = model.threshold * nsamples
@@ -102,7 +95,7 @@ def get_model_predictions(model, learn_w, nsamples, pref_based):
     predictions = {c: [predictions[c][:, i]
                        for i in range(predictions[c].shape[1])] for c in predictions}
 
-    return predictions, W_list, avg_t / nsamples, t
+    return predictions, avg_t / nsamples, t
 
 
 @profile
@@ -118,25 +111,13 @@ def get_nn_model(nn_opts, idx):
 @profile
 def initi_nn_opts(opts, data):
     nn_opts = get_nn_options(data, opts)
-    loss, w_lr, m_lr, w_decay, momentum, optimizer, grad_clip = get_hyper_params(
+    loss, lr, optimizer, grad_clip = get_hyper_params(
         nn_opts, opts)
-    nn_opts['w_lr'] = w_lr
-    nn_opts['m_lr'] = m_lr
+    nn_opts['lr'] = lr
     nn_opts['loss'] = loss
-    nn_opts['momentum'] = momentum
     nn_opts['optimizer'] = optimizer
-    nn_opts['w_decay'] = w_decay
     nn_opts['grad_clip'] = grad_clip
     return nn_opts
-
-
-@profile
-def reset_model(model, opts):
-    loss, lr, _, momentum, optimizer = get_hyper_params(model, opts)
-    opts['lr'] = lr
-    opts['loss'] = loss
-    opts['momentum'] = momentum
-    opts['optimizer'] = optimizer
 
 
 @profile
@@ -183,25 +164,15 @@ def clamp_parameters(nn_opts, opts):
 @profile
 def get_hyper_params(nn_opts, opts):
     loss_func = torch.nn.MultiMarginLoss(margin=1e0)
-    w_lr = 0.001 if opts['m'] else 0.01
-    m_lr = 0.05
-    w_decay = 0.8
-    momentum = 0.1
+    lr = 0.05
     grad_clip = 50
 
     if 'grad_clip' in opts:
         grad_clip = opts['grad_clip']
-    if 'm_lr' in opts:
-        m_lr = opts['m_lr']
-    if 'w_lr' in opts:
-        w_lr = opts['w_lr']
-    if 'w_decay' in opts:
-        w_decay = opts['w_decay']
-    if opts['m']:
-        optim = torch.optim.Adam([nn_opts['M']], lr=m_lr)
-    else:
-        optim = None
-    return loss_func, w_lr, m_lr, w_decay, momentum, optim, grad_clip
+    if 'lr' in opts:
+        lr = opts['lr']
+    optim = torch.optim.Adam([nn_opts['M'], nn_opts['w']], lr=lr)
+    return loss_func, lr, optim, grad_clip
 
 
 @profile
@@ -216,9 +187,9 @@ def get_nn_options(data, opts):
 
     if opts['w']:
         w = np.ones((a, 1))
-        w /= w.sum()
+        w = torch.tensor(w.tolist(), requires_grad=True)
     else:
-        w = np.array(data['w'])
+        w = torch.tensor(data['w'], requires_grad=False)
     options = {
         'phi1': torch.tensor([0.01], requires_grad=True) if opts['s']
         else torch.tensor([data['phi1']], requires_grad=False),

@@ -14,7 +14,7 @@ Options:
     --nprint=INT               Number of iterations per print. [default: 30]
     --ntest=INT                Number of test samples for evaluations[default: 10000]
     --ntrain=INT               Number of train samples. [default: 100]
-    --i=STR                    input data set. [default: data/sushi.json]
+    --i=STR                    input data set. [default: data/pref_based/sushi.json]
     --o=STR                    output path. [default: results/NN/pref_based/M/sushi]
     --m=STR                    Learn M. [default: True]
     --w=STR                    Learn W. [default: False]
@@ -33,6 +33,10 @@ import json
 from mdft_nn.helpers.profiling import global_profiler
 from mdft_nn.trainer import train
 from mdft_nn.trainer_helpers import get_model_dist
+
+import os
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 def get_options():
