@@ -251,13 +251,14 @@ def test_whole(r):
         'idx': [list(range(len(r['M'])))]
     }
     pred_freq = get_model_dist(r, data, 1000)
-    actual_freq = r['whole_D'] if 'whole_D' in r else get_model_dist(r['data'], data, 10000) 
+    actual_freq = r['whole_D'] if 'whole_D' in r else get_model_dist(
+        r['data'], data, 10000)
     return np.mean([jsd(d1, d2) for d1, d2 in zip(pred_freq, actual_freq)])
 
 
 def summarize():
     style()
-    for type in ['pref_based']:
+    for type in ['time_based', 'pref_based']:
         summary_list = {}
         for model in ['MLE', 'NN']:
             summary = {}
