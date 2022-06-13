@@ -8,13 +8,24 @@ class MDFT_Net(nn.Module):
         super(MDFT_Net, self).__init__()
         self.__set_options(options)
         self.__set_C()
+        B = self.__invB()
+        A = torch.eye(self.attr_count)
+        A[-1, -1] = self.b
+        self.H = B @ A @ B.T
         self.__set_S()
 
     def update_S(self):
         self.__set_S()
 
+    def __invB(self):
+        n = self.attr_count
+        ib = -torch.ones((n, n))
+        for i in range(1, n):
+            ib[i-1, i] = n - 1
+        ib[-1, :] = 1
+        return ib / np.sqrt(n)
+
     def __set_S(self):
-        self.H = (torch.eye(2) * 2 - 1 + self.b) / 2
         self.S = torch.zeros((self.options_count, self.options_count))
         for i in range(self.options_count):
             for j in range(self.options_count):
@@ -22,8 +33,8 @@ class MDFT_Net(nn.Module):
 
     def __S(self, i, j):
         dm = self.M[j] - self.M[i]
-        d = dm @ self.H @ dm
-        d = d * d
+        d = dm @ self.H @ dm.T
+        d = d ** 2
 
         s = self.phi2 * torch.exp(-self.phi1 * d)
         if i == j:
